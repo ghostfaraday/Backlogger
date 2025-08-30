@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Backlogger — Backtesting Game</title>
+    <meta name="description" content="Gamified backtesting with money-focused progression, ranks, and achievements." />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Modern game-like pairing: Orbitron (titles) + Inter (UI) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div class="bg-grid"></div>
+
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo">BL</div>
+        <h1>Backlogger</h1>
+      </div>
+      <nav class="nav">
+        <button class="nav-btn is-active" data-view="dashboard">Dashboard</button>
+        <button class="nav-btn" data-view="challenge">Challenge</button>
+        <button class="nav-btn" data-view="log">Trade Log</button>
+        <button class="nav-btn" data-view="records">Records</button>
+        <button class="nav-btn" data-view="settings">Settings</button>
+      </nav>
+      <div class="user">
+        <div class="rank-badge" id="rankBadge">
+          <span class="rank-title">Novice</span>
+        </div>
+        <div class="balance" id="topBalance">$10,000</div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- DASHBOARD VIEW -->
+      <section id="view-dashboard" class="view is-visible">
+        <div class="grid">
+          <article class="card rank-card">
+            <header>
+              <h2>Trader Level</h2>
+              <span class="level-name" id="levelName">Novice</span>
+            </header>
+            <div class="level-track">
+              <div class="level-step" data-label="Novice"></div>
+              <div class="level-step" data-label="Apprentice"></div>
+              <div class="level-step" data-label="Consistent"></div>
+              <div class="level-step" data-label="Professional"></div>
+              <div class="level-step" data-label="Elite"></div>
+              <div class="level-step" data-label="Master"></div>
+              <div class="level-step legend" data-label="Legend"></div>
+              <div class="level-progress" id="levelProgress" style="width: 8%"></div>
+            </div>
+            <footer class="level-legend">
+              <span class="legend-dot novice"></span> Novice
+              <span class="legend-dot apprentice"></span> Apprentice
+              <span class="legend-dot consistent"></span> Consistent
+              <span class="legend-dot professional"></span> Professional
+              <span class="legend-dot elite"></span> Elite
+              <span class="legend-dot master"></span> Master
+              <span class="legend-dot legend"></span> Legend
+            </footer>
+          </article>
+
+          <article class="card balance-card">
+            <header>
+              <h2>Account Balance</h2>
+            </header>
+            <div class="balance-row">
+              <div>
+                <div class="big-number" id="accountBalance">$10,000</div>
+                <div class="sub">Equity: <span id="equity">$10,000</span></div>
+              </div>
+              <div class="pill-group">
+                <span class="pill green" id="dailyPL">+ $0</span>
+                <span class="pill blue" id="weeklyPL">Week: $0</span>
+              </div>
+            </div>
+            <div class="kpis">
+              <div class="kpi">
+                <div class="kpi-label">Profit Factor</div>
+                <div class="kpi-value" id="profitFactor">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Win Rate</div>
+                <div class="kpi-value" id="winRate">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Max Drawdown</div>
+                <div class="kpi-value" id="maxDD">—</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">MPI</div>
+                <div class="kpi-value" id="mpi">—</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card achievements-card">
+            <header>
+              <h2>Money Achievements</h2>
+            </header>
+            <ul class="badges" id="badges">
+              <!-- badges injected -->
+            </ul>
+            <div class="records">
+              <div class="record">
+                <span>Biggest Profit</span>
+                <strong id="biggestProfit">$0</strong>
+              </div>
+              <div class="record">
+                <span>Biggest Loss</span>
+                <strong id="biggestLoss">$0</strong>
+              </div>
+              <div class="record">
+                <span>Best Week</span>
+                <strong id="bestWeek">$0</strong>
+              </div>
+              <div class="record">
+                <span>New High Watermark</span>
+                <strong id="highWater">$10,000</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="card challenge-card">
+            <header>
+              <h2>Weekly Challenge</h2>
+            </header>
+            <p class="muted">Play a randomized trading week. Log trades. Beat your records. Earn points.</p>
+            <div class="row">
+              <select id="strategySelect">
+                <option>Breakout</option>
+                <option>Pullback</option>
+                <option>Trend</option>
+                <option>News</option>
+              </select>
+              <select id="pairSelect">
+                <option>XAUUSD</option>
+                <option>EURUSD</option>
+                <option>GBPUSD</option>
+                <option>NAS100</option>
+              </select>
+              <button id="startChallenge" class="primary">Start</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- CHALLENGE VIEW -->
+      <section id="view-challenge" class="view">
+        <article class="card">
+          <header>
+            <h2>Current Week</h2>
+          </header>
+          <div class="row">
+            <div class="pill blue" id="challengeInfo">No active challenge</div>
+            <button class="secondary" id="endWeek">End Week & Report</button>
+          </div>
+          <div class="logger">
+            <h3>Log Trade</h3>
+            <form id="tradeForm">
+              <div class="form-row">
+                <label>Entry <input type="number" step="0.0001" name="entry" required></label>
+                <label>Stop <input type="number" step="0.0001" name="stop" required></label>
+                <label>Exit <input type="number" step="0.0001" name="exit" required></label>
+              </div>
+              <div class="form-row">
+                <label>Risk % <input type="number" step="0.1" name="riskPct" value="1" required></label>
+                <label>Grade
+                  <select name="grade">
+                    <option>A</option>
+                    <option>B</option>
+                    <option>C</option>
+                  </select>
+                </label>
+                <label>Notes <input type="text" name="notes" placeholder="Why this trade?"></label>
+              </div>
+              <div class="form-row">
+                <label>
+                  <input type="checkbox" name="ruleFollowed" checked>
+                  Followed rules
+                </label>
+                <button class="primary" type="submit">Add Trade</button>
+              </div>
+            </form>
+          </div>
+          <div class="table-wrap">
+            <table class="table" id="tradeTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Pair</th>
+                  <th>R</th>
+                  <th>P/L ($)</th>
+                  <th>Grade</th>
+                  <th>Rules</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <!-- RECORDS VIEW -->
+      <section id="view-records" class="view">
+        <article class="card">
+          <header>
+            <h2>Records & Leaderboard</h2>
+          </header>
+          <ul class="records-list" id="recordsList"></ul>
+        </article>
+      </section>
+
+      <!-- LOG VIEW -->
+      <section id="view-log" class="view">
+        <article class="card">
+          <header>
+            <h2>Weekly Reports</h2>
+          </header>
+          <ul class="reports" id="reports"></ul>
+        </article>
+      </section>
+
+      <!-- SETTINGS VIEW -->
+      <section id="view-settings" class="view">
+        <article class="card">
+          <header><h2>Settings</h2></header>
+          <div class="form-row">
+            <label>Starting Balance <input type="number" id="startingBalance" value="10000" /></label>
+            <label>Base Risk % <input type="number" id="baseRisk" value="1" step="0.1" /></label>
+            <button class="secondary" id="saveSettings">Save</button>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span>Backlogger • Backtesting-as-a-Game</span>
+      <span>v0.1.0</span>
+    </footer>
+
+    <script src="./src/app.js" type="module"></script>
+  </body>
+  </html>
