@@ -93,7 +93,8 @@ function deriveLevel(mpi) {
     const rel = Math.max(0, Math.min(1, (mpi - current.minMPI) / span));
     return rel;
   })();
-  return { name: current.name, progressToNext };
+  const nextName = levelThresholds[idx + 1]?.name || null;
+  return { name: current.name, progressToNext, nextName };
 }
 
 function awardBadge(key, label) {
@@ -135,10 +136,12 @@ function renderDashboard() {
   state.stats.mpi = calcMPI(state.stats);
   $('#mpi').textContent = fmt(state.stats.mpi);
 
-  const { name, progressToNext } = deriveLevel(state.stats.mpi);
+  const { name, progressToNext, nextName } = deriveLevel(state.stats.mpi || 0);
   $('#levelName').textContent = name;
   $('#rankBadge .rank-title').textContent = name;
   $('#levelProgress').style.width = `${Math.round(progressToNext * 100)}%`;
+  const nextEl = document.getElementById('nextLevel');
+  if (nextEl) nextEl.textContent = nextName ? `Next: ${nextName}` : `Max level reached`;
 
   $('#biggestProfit').textContent = `$${fmt(state.account.biggestProfit)}`;
   $('#biggestLoss').textContent = `$${fmt(Math.abs(state.account.biggestLoss))}`;
