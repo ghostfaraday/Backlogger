@@ -94,7 +94,12 @@ function deriveLevel(mpi) {
     return rel;
   })();
   const nextName = levelThresholds[idx + 1]?.name || null;
-  return { name: current.name, progressToNext, nextName };
+  // Cumulative progress across all levels (0..100%) used for marker positioning
+  const totalLevels = levelThresholds.length - 1; // segments between levels
+  const segmentWidth = 100 / totalLevels;
+  const cumulative = Math.min(100, Math.max(0, idx * segmentWidth + (progressToNext * segmentWidth)));
+  const nextBoundary = Math.min(100, (idx + 1) * segmentWidth);
+  return { name: current.name, progressToNext, nextName, cumulative, nextBoundary };
 }
 
 function awardBadge(key, label) {
@@ -136,10 +141,14 @@ function renderDashboard() {
   state.stats.mpi = calcMPI(state.stats);
   $('#mpi').textContent = fmt(state.stats.mpi);
 
-  const { name, progressToNext, nextName } = deriveLevel(state.stats.mpi || 0);
+  const { name, progressToNext, nextName, cumulative, nextBoundary } = deriveLevel(state.stats.mpi || 0);
   $('#levelName').textContent = name;
   $('#rankBadge .rank-title').textContent = name;
-  $('#levelProgress').style.width = `${Math.round(progressToNext * 100)}%`;
+  // Fill bar proportionally across total levels (so Novice shows first segment growth)
+  $('#levelProgress').style.width = `${Math.round(cumulative)}%`;
+  // Position next-level marker at next boundary
+  const marker = document.getElementById('nextLevelMarker');
+  if (marker) marker.style.left = `${nextBoundary}%`;
   const nextEl = document.getElementById('nextLevel');
   if (nextEl) nextEl.textContent = nextName ? `Next: ${nextName}` : `Max level reached`;
 
