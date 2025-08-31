@@ -144,7 +144,7 @@ body {
 .record strong { display: block; margin-top: 6px; font-size: 18px; }
 
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.row.space-between { justify-content: space-between; }
+.row.space-between { justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 select, input, button { 
   height: 40px; 
   border-radius: 10px; 
@@ -244,11 +244,13 @@ input[type="checkbox"] { height: auto; }
 
 /* Day track (Mon-Fri) */
 /* Current day + actions */
-.day-actions { display: flex; gap: 8px; align-items: center; }
+.day-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 100%; justify-content: flex-end; }
 .current-day { font-weight: 700; color: var(--accent); }
 /* Make day label and Next Day same visual size */
 .current-day.pill.small, #nextDay.small { height: 32px; display: inline-flex; align-items: center; }
 .day-actions .small { min-width: 110px; justify-content: center; }
+/* Prevent buttons from forcing overflow */
+.day-actions button { white-space: nowrap; }
 
 /* Rules card */
 .rules-card {
@@ -268,7 +270,7 @@ input[type="checkbox"] { height: auto; }
 
 .actions { display: flex; gap: 8px; }
 /* Spacing between header and daily summary */
-.daily-row { margin-top: 8px; }
+.daily-row { margin-top: 12px; }
 @media (max-width: 480px) {
   .actions { flex-direction: column; }
   .actions .primary, .actions .secondary { width: 100%; }
