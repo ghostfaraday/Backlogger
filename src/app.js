@@ -56,7 +56,7 @@ const initialState = () => ({
   badges: [],
   reports: [],
   records: [],
-  currentChallenge: null, // { strategy, pair, weekId, trades: [] }
+  currentChallenge: null, // { strategy, pair, weekId, weekStart, days: [ { key, date, trades: [], noTrade } ], dayIndex }
 });
 
 let state = store.load() || initialState();
@@ -181,7 +181,7 @@ function renderBadges() {
 function renderTrades() {
   const tbody = $('#tradeTable tbody');
   tbody.innerHTML = '';
-  const trades = state.currentChallenge?.trades || [];
+  const trades = state.currentChallenge ? state.currentChallenge.days.flatMap(d => d.trades) : [];
   trades.forEach(t => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -190,7 +190,7 @@ function renderTrades() {
       <td>${fmt2(t.rMultiple)}</td>
       <td>${signFmt(t.pl)}</td>
       <td>${t.grade}</td>
-      <td>${t.ruleFollowed ? 'Yes' : 'No'}</td>
+      <td>${t.ruleSummary || ''}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -236,47 +236,59 @@ function startChallenge() {
   const strategy = $('#strategySelect').value;
   const pair = $('#pairSelect').value;
   const weekId = Math.floor(Math.random() * 9000) + 1000;
-  state.currentChallenge = { strategy, pair, weekId, trades: [] };
-  $('#challengeInfo').textContent = `Week ${weekId} • ${strategy} on ${pair}`;
+  const weekStartInput = $('#weekStart').value;
+  const weekStart = getMondayISO(weekStartInput ? new Date(weekStartInput) : new Date());
+  const days = buildWeekDays(weekStart);
+  state.currentChallenge = { strategy, pair, weekId, weekStart, days, dayIndex: 0 };
+  $('#challengeInfo').textContent = `Week ${weekId} • ${strategy} on ${pair} • ${formatWeekRange(weekStart)}`;
+  $('#endWeek').disabled = false;
+  $('#markNoTrade').disabled = false;
+  $('#nextDay').disabled = false;
+  renderDayTrack();
+  updateDailySummary();
   switchView('challenge');
   persistAndRender();
 }
 
 function endWeek() {
   if (!state.currentChallenge) return;
-  const trades = state.currentChallenge.trades;
-  const weekPL = trades.reduce((a, t) => a + t.pl, 0);
-  const wins = trades.filter(t => t.pl > 0).length;
-  const losses = trades.filter(t => t.pl < 0).length;
-  const sumProfit = trades.filter(t => t.pl > 0).reduce((a, t) => a + t.pl, 0);
-  const sumLossAbs = Math.abs(trades.filter(t => t.pl < 0).reduce((a, t) => a + t.pl, 0));
+  const allTrades = state.currentChallenge.days.flatMap(d => d.trades);
+  const weekPL = allTrades.reduce((a, t) => a + t.pl, 0);
+  const wins = allTrades.filter(t => t.pl > 0).length;
+  const losses = allTrades.filter(t => t.pl < 0).length;
+  const sumProfit = allTrades.filter(t => t.pl > 0).reduce((a, t) => a + t.pl, 0);
+  const sumLossAbs = Math.abs(allTrades.filter(t => t.pl < 0).reduce((a, t) => a + t.pl, 0));
   const pf = calcProfitFactor(sumProfit, sumLossAbs);
   const wr = (wins + losses) ? (wins / (wins + losses)) * 100 : 0;
   
   // Calculate additional weekly metrics
-  const avgRMultiple = trades.length ? trades.reduce((a, t) => a + t.rMultiple, 0) / trades.length : 0;
+  const avgRMultiple = allTrades.length ? allTrades.reduce((a, t) => a + t.rMultiple, 0) / allTrades.length : 0;
   const gradeDistribution = {
-    A: trades.filter(t => t.grade === 'A').length,
-    B: trades.filter(t => t.grade === 'B').length,
-    C: trades.filter(t => t.grade === 'C').length,
+    A: allTrades.filter(t => t.grade === 'A').length,
+    B: allTrades.filter(t => t.grade === 'B').length,
+    C: allTrades.filter(t => t.grade === 'C').length,
   };
-  const ruleAdherence = trades.length ? (trades.filter(t => t.ruleFollowed).length / trades.length) * 100 : 0;
-  const bestTrade = trades.reduce((best, t) => t.pl > best.pl ? t : best, { pl: -Infinity });
-  const worstTrade = trades.reduce((worst, t) => t.pl < worst.pl ? t : worst, { pl: Infinity });
+  const adherenceByCat = calcRuleAdherence(allTrades);
+  const ruleAdherence = adherenceByCat.overall;
+  const bestTrade = allTrades.reduce((best, t) => t.pl > best.pl ? t : best, { pl: -Infinity });
+  const worstTrade = allTrades.reduce((worst, t) => t.pl < worst.pl ? t : worst, { pl: Infinity });
   
   state.reports.unshift({
     weekId: state.currentChallenge.weekId,
     strategy: state.currentChallenge.strategy,
     pair: state.currentChallenge.pair,
+    weekRange: formatWeekRange(state.currentChallenge.weekStart),
     weekPL,
     winRate: wr,
     pf,
     avgRMultiple,
     gradeDistribution,
     ruleAdherence,
+    adherenceByCat,
     bestTrade: bestTrade.pl > -Infinity ? bestTrade : null,
     worstTrade: worstTrade.pl < Infinity ? worstTrade : null,
-    totalTrades: trades.length,
+    totalTrades: allTrades.length,
+    days: summarizeDays(state.currentChallenge.days),
   });
   
   // Reset weekly tracking
@@ -288,6 +300,9 @@ function endWeek() {
   
   state.currentChallenge = null;
   $('#challengeInfo').textContent = 'No active challenge';
+  $('#endWeek').disabled = true;
+  $('#markNoTrade').disabled = true;
+  $('#nextDay').disabled = true;
   persistAndRender();
   switchView('log');
 }
@@ -301,7 +316,10 @@ function addTrade(formData) {
   const riskPct = parseFloat(formData.get('riskPct') || state.settings.baseRiskPct);
   const grade = formData.get('grade');
   const notes = formData.get('notes') || '';
-  const ruleFollowed = !!formData.get('ruleFollowed');
+  const ruleStrategy = !!formData.get('ruleStrategy');
+  const ruleTradeMgmt = !!formData.get('ruleTradeMgmt');
+  const ruleRiskMgmt = !!formData.get('ruleRiskMgmt');
+  const rulePlan = !!formData.get('rulePlan');
   const pair = state.currentChallenge.pair; // Use challenge pair, not selector
 
   // Validation
@@ -368,6 +386,7 @@ function addTrade(formData) {
   }
 
   // Rule violations penalty
+  const ruleFollowed = ruleStrategy && ruleTradeMgmt && ruleRiskMgmt && rulePlan;
   if (!ruleFollowed) {
     // Deduct points or mark violation (placeholder for points system)
   }
@@ -382,11 +401,98 @@ function addTrade(formData) {
     pair,
     entry, stop, exit,
     riskPct, grade, notes, ruleFollowed,
+    ruleStrategy, ruleTradeMgmt, ruleRiskMgmt, rulePlan,
+    ruleSummary: `${ruleStrategy ? 'S' : 's'}${ruleTradeMgmt ? 'T' : 't'}${ruleRiskMgmt ? 'R' : 'r'}${rulePlan ? 'P' : 'p'}`,
     rMultiple: parseFloat(rMultiple.toFixed(2)),
     pl,
   };
-  state.currentChallenge.trades.unshift(trade);
+  // Insert into current day
+  const day = state.currentChallenge.days[state.currentChallenge.dayIndex];
+  day.trades.unshift(trade);
+  updateDailySummary();
   renderTrades();
+}
+
+// ---- Challenge day/week helpers ----
+const DAY_KEYS = ['monday','tuesday','wednesday','thursday','friday'];
+function getMondayISO(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0..6, where 1 is Monday
+  const diff = (day === 0 ? -6 : 1 - day); // move to Monday
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d.toISOString().slice(0,10);
+}
+function buildWeekDays(weekStartISO) {
+  const base = new Date(weekStartISO);
+  const arr = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    arr.push({ key: DAY_KEYS[i], date: d.toISOString().slice(0,10), trades: [], noTrade: false });
+  }
+  return arr;
+}
+function formatWeekRange(weekStartISO) {
+  const start = new Date(weekStartISO);
+  const end = new Date(weekStartISO);
+  end.setDate(end.getDate() + 4);
+  return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+}
+function renderDayTrack() {
+  const el = document.getElementById('dayTrack');
+  if (!el || !state.currentChallenge) return;
+  el.innerHTML = '';
+  state.currentChallenge.days.forEach((d, i) => {
+    const div = document.createElement('div');
+    div.className = 'day' + (i === state.currentChallenge.dayIndex ? ' is-active' : (d.trades.length || d.noTrade) ? ' is-done' : '');
+    div.textContent = d.key.charAt(0).toUpperCase() + d.key.slice(1);
+    el.appendChild(div);
+  });
+}
+function updateDailySummary() {
+  const el = document.getElementById('dailySummary');
+  if (!el || !state.currentChallenge) return;
+  const d = state.currentChallenge.days[state.currentChallenge.dayIndex];
+  const dayPL = d.trades.reduce((a, t) => a + t.pl, 0);
+  el.textContent = `Today: ${d.trades.length} trades • P/L ${signFmt(dayPL)}`;
+}
+function markNoTradeToday() {
+  if (!state.currentChallenge) return;
+  const d = state.currentChallenge.days[state.currentChallenge.dayIndex];
+  d.noTrade = true;
+  renderDayTrack();
+  updateDailySummary();
+  persistAndRender();
+}
+function gotoNextDay() {
+  if (!state.currentChallenge) return;
+  if (state.currentChallenge.dayIndex < 4) {
+    state.currentChallenge.dayIndex += 1;
+    renderDayTrack();
+    updateDailySummary();
+    persistAndRender();
+  }
+}
+function calcRuleAdherence(trades) {
+  if (!trades.length) return { overall: 0, strategy: 0, tradeMgmt: 0, riskMgmt: 0, plan: 0 };
+  const tot = trades.length;
+  const strategy = trades.filter(t => t.ruleStrategy).length / tot * 100;
+  const tradeMgmt = trades.filter(t => t.ruleTradeMgmt).length / tot * 100;
+  const riskMgmt = trades.filter(t => t.ruleRiskMgmt).length / tot * 100;
+  const plan = trades.filter(t => t.rulePlan).length / tot * 100;
+  const overall = trades.filter(t => t.ruleFollowed).length / tot * 100;
+  return { overall, strategy, tradeMgmt, riskMgmt, plan };
+}
+function summarizeDays(days) {
+  return days.map(d => ({
+    key: d.key,
+    date: d.date,
+    noTrade: d.noTrade,
+    trades: d.trades.length,
+    pl: d.trades.reduce((a, t) => a + t.pl, 0),
+    wr: (() => { const w = d.trades.filter(t => t.pl>0).length; const l = d.trades.filter(t=>t.pl<0).length; return (w+l)? (w/(w+l))*100 : 0; })(),
+  }));
 }
 
 function saveSettings() {
@@ -427,11 +533,15 @@ function persistAndRender() {
   renderTrades();
   renderReports();
   renderRecords();
+  renderDayTrack();
+  updateDailySummary();
 }
 
 // ---------- Events ----------
 $('#startChallenge').addEventListener('click', startChallenge);
 $('#endWeek').addEventListener('click', endWeek);
+$('#markNoTrade').addEventListener('click', markNoTradeToday);
+$('#nextDay').addEventListener('click', gotoNextDay);
 
 $('#tradeForm').addEventListener('submit', (e) => {
   e.preventDefault();
