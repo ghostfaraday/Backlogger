@@ -36,3 +36,22 @@ Restore
 
 Notes
 - This timeline focuses on design/UI. Functional changes are tracked in commit history and docs.
+
+---
+
+## Snapshot: 2025-08-31 (Header/Menu mobile polish)
+Tag: design-snapshot-2025-08-31b
+
+Highlights
+- Header/menu cleanup: 4-item centered nav; logo anchored left; Settings moved to right as gear button
+- Mobile header: two-row layout (brand+gear first row, centered nav second row) for better balance
+- Settings button: added visible “Settings” label next to gear, compact typography to fit on small screens
+- Mobile affordances: hide balance on very small screens to avoid overflow; smooth horizontal scroll for nav if needed
+
+Key commits
+- 35d9837 — UI: header polish — logo left, centered menu with 4 items, settings gear at right; responsive tweaks
+- 06e114e — Mobile header: two-row layout; hide balance on small screens; prevent overflow
+- 4940042 — UX: add “Settings” label next to gear; icon button spacing
+
+Restore
+- Use the git tag “design-snapshot-2025-08-31b” to check out this design state (post-header/mobile polish).
