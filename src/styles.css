@@ -88,9 +88,7 @@ body {
   transition: all 0.2s ease;
 }
 .icon-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); color: var(--accent); }
-@media (max-width: 480px) {
-  .icon-btn .label { display: none; }
-}
+.icon-btn .label { font-size: 12px; font-weight: 600; letter-spacing: 0.2px; }
 .rank-badge { padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); }
 .rank-title { font-family: Orbitron, Inter, sans-serif; letter-spacing: 0.5px; }
 .balance { font-weight: 600; }
