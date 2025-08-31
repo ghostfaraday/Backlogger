@@ -303,19 +303,23 @@ input[type="checkbox"] { height: auto; }
   .rank-card, .achievements-card { grid-column: span 12; }
   .balance-card, .challenge-card { grid-column: span 6; }
   .kpis { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .nav::-webkit-scrollbar { height: 0; }
   .records { grid-template-columns: repeat(2, 1fr); gap: 8px; }
 }
 
 @media (max-width: 768px) {
   .app-header { 
-    grid-template-columns: 1fr auto 1fr; 
+    grid-template-columns: auto 1fr auto; 
+    grid-template-areas:
+      "brand . user"
+      "nav   nav nav";
     align-items: center;
     text-align: initial; 
     gap: 10px; 
   }
-  .brand { justify-content: flex-start; }
-  .user { justify-content: flex-end; }
-  .nav { flex-wrap: wrap; justify-content: center; }
+  .brand { justify-content: flex-start; grid-area: brand; }
+  .user { justify-content: flex-end; grid-area: user; }
+  .nav { grid-area: nav; justify-content: center; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .nav-btn { font-size: 12px; padding: 8px 12px; }
   
   .grid { display: block; }
@@ -352,7 +356,8 @@ input[type="checkbox"] { height: auto; }
   .logo { width: 32px; height: 32px; }
   .user { gap: 10px; }
   .rank-badge { display: none; }
-  .balance { font-size: 13px; }
+  .balance { display: none; }
+  .nav { flex-wrap: nowrap; justify-content: center; overflow-x: auto; }
   
   .card { padding: 12px; }
   .card h2 { font-size: 14px; }
