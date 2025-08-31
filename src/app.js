@@ -241,10 +241,9 @@ function startChallenge() {
   const days = buildWeekDays(weekStart);
   state.currentChallenge = { strategy, pair, weekId, weekStart, days, dayIndex: 0 };
   $('#challengeInfo').textContent = `Week ${weekId} • ${strategy} on ${pair} • ${formatWeekRange(weekStart)}`;
-  $('#endWeek').disabled = false;
   $('#markNoTrade').disabled = false;
   $('#nextDay').disabled = false;
-  renderDayTrack();
+  updateCurrentDayUI();
   updateDailySummary();
   switchView('challenge');
   persistAndRender();
@@ -300,7 +299,7 @@ function endWeek() {
   
   state.currentChallenge = null;
   $('#challengeInfo').textContent = 'No active challenge';
-  $('#endWeek').disabled = true;
+  $('#endWeek').style.display = 'none';
   $('#markNoTrade').disabled = true;
   $('#nextDay').disabled = true;
   persistAndRender();
@@ -439,16 +438,18 @@ function formatWeekRange(weekStartISO) {
   end.setDate(end.getDate() + 4);
   return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
 }
-function renderDayTrack() {
-  const el = document.getElementById('dayTrack');
-  if (!el || !state.currentChallenge) return;
-  el.innerHTML = '';
-  state.currentChallenge.days.forEach((d, i) => {
-    const div = document.createElement('div');
-    div.className = 'day' + (i === state.currentChallenge.dayIndex ? ' is-active' : (d.trades.length || d.noTrade) ? ' is-done' : '');
-    div.textContent = d.key.charAt(0).toUpperCase() + d.key.slice(1);
-    el.appendChild(div);
-  });
+function updateCurrentDayUI() {
+  const el = document.getElementById('currentDay');
+  const endBtn = document.getElementById('endWeek');
+  const nextBtn = document.getElementById('nextDay');
+  if (!state.currentChallenge || !el) return;
+  const idx = state.currentChallenge.dayIndex;
+  const label = DAY_KEYS[idx]?.charAt(0).toUpperCase() + DAY_KEYS[idx]?.slice(1) || '—';
+  el.textContent = label;
+  // Show End Week button only on Friday
+  const isFriday = idx === 4;
+  endBtn.style.display = isFriday ? '' : 'none';
+  nextBtn.disabled = isFriday;
 }
 function updateDailySummary() {
   const el = document.getElementById('dailySummary');
@@ -461,7 +462,6 @@ function markNoTradeToday() {
   if (!state.currentChallenge) return;
   const d = state.currentChallenge.days[state.currentChallenge.dayIndex];
   d.noTrade = true;
-  renderDayTrack();
   updateDailySummary();
   persistAndRender();
 }
@@ -469,7 +469,7 @@ function gotoNextDay() {
   if (!state.currentChallenge) return;
   if (state.currentChallenge.dayIndex < 4) {
     state.currentChallenge.dayIndex += 1;
-    renderDayTrack();
+  updateCurrentDayUI();
     updateDailySummary();
     persistAndRender();
   }
@@ -533,7 +533,7 @@ function persistAndRender() {
   renderTrades();
   renderReports();
   renderRecords();
-  renderDayTrack();
+  updateCurrentDayUI();
   updateDailySummary();
 }
 

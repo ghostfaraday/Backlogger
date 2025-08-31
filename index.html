@@ -150,15 +150,16 @@
           <header>
             <h2>Current Week</h2>
           </header>
-          <div class="row">
+          <div class="row space-between">
             <div class="pill blue" id="challengeInfo">No active challenge</div>
-            <button class="secondary" id="endWeek" disabled>End Week & Report</button>
+            <div class="day-actions">
+              <span class="current-day" id="currentDay">—</span>
+              <button class="secondary" id="nextDay" disabled>Next Day</button>
+              <button class="secondary" id="endWeek" style="display:none">End Week & Report</button>
+            </div>
           </div>
-          <div class="day-track" id="dayTrack" aria-label="Trading days Monday to Friday"></div>
-          <div class="row" style="justify-content: space-between; margin-top:8px;">
-            <button class="secondary" id="markNoTrade" disabled>Mark No Trade Today</button>
+          <div class="row">
             <div class="pill" id="dailySummary">Today: 0 trades • P/L $0</div>
-            <button class="secondary" id="nextDay" disabled>Next Day</button>
           </div>
           <div class="logger">
             <h3>Log Trade</h3>
@@ -179,19 +180,20 @@
                 </label>
                 <label>Notes <input type="text" name="notes" placeholder="Why this trade?"></label>
               </div>
-              <div class="form-row">
-                <label><input type="checkbox" name="ruleStrategy" checked> Strategy rules</label>
-                <label><input type="checkbox" name="ruleTradeMgmt" checked> Trade management</label>
-                <label><input type="checkbox" name="ruleRiskMgmt" checked> Risk management</label>
+              <div class="rules-card">
+                <div class="rules-title">Trade Rules</div>
+                <div class="rules-grid">
+                  <label class="rule-item"><input type="checkbox" name="ruleStrategy" checked> Strategy rules</label>
+                  <label class="rule-item"><input type="checkbox" name="ruleTradeMgmt" checked> Trade management</label>
+                  <label class="rule-item"><input type="checkbox" name="ruleRiskMgmt" checked> Risk management</label>
+                  <label class="rule-item"><input type="checkbox" name="rulePlan" checked> Trading plan</label>
+                </div>
               </div>
               <div class="form-row">
-                <label><input type="checkbox" name="rulePlan" checked> Trading plan</label>
-                <div></div>
-                <div></div>
-              </div>
-              <div class="form-row">
-                <label></label>
-                <button class="primary" type="submit">Add Trade</button>
+                <div class="actions">
+                  <button class="primary" type="submit">Add Trade</button>
+                  <button class="secondary" type="button" id="markNoTrade" disabled>No Trade Today</button>
+                </div>
               </div>
             </form>
           </div>
