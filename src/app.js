@@ -556,6 +556,14 @@ $('#endWeek').addEventListener('click', endWeek);
 $('#markNoTrade').addEventListener('click', markNoTradeToday);
 $('#nextDay').addEventListener('click', gotoNextDay);
 
+// Settings icon in header should open Settings view
+const settingsBtn = document.getElementById('settingsBtn');
+if (settingsBtn) {
+  settingsBtn.addEventListener('click', () => {
+    switchView('settings');
+  });
+}
+
 $('#tradeForm').addEventListener('submit', (e) => {
   e.preventDefault();
   const fd = new FormData(e.currentTarget);
