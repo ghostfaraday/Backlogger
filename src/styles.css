@@ -351,6 +351,11 @@ input[type="checkbox"] { height: auto; }
   .badges li { padding: 6px 10px; font-size: 11px; }
   
   .app-footer { flex-direction: column; text-align: center; gap: 8px; font-size: 12px; }
+  /* Challenge header mobile layout tweaks */
+  .day-actions { width: 100%; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .day-actions .current-day, .day-actions #nextDay { flex: 1 1 calc(50% - 4px); display: inline-flex; justify-content: center; }
+  .day-actions #endWeek { flex: 1 1 100%; margin-top: 8px; }
+  .daily-row { margin-top: 14px; }
 }
 
 @media (max-width: 360px) {
