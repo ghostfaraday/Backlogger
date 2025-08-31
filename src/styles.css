@@ -246,6 +246,9 @@ input[type="checkbox"] { height: auto; }
 /* Current day + actions */
 .day-actions { display: flex; gap: 8px; align-items: center; }
 .current-day { font-weight: 700; color: var(--accent); }
+/* Make day label and Next Day same visual size */
+.current-day.pill.small, #nextDay.small { height: 32px; display: inline-flex; align-items: center; }
+.day-actions .small { min-width: 110px; justify-content: center; }
 
 /* Rules card */
 .rules-card {
@@ -264,9 +267,15 @@ input[type="checkbox"] { height: auto; }
 .star.is-on { color: var(--yellow); text-shadow: 0 0 8px rgba(245,158,11,0.3); }
 
 .actions { display: flex; gap: 8px; }
+/* Spacing between header and daily summary */
+.daily-row { margin-top: 8px; }
 @media (max-width: 480px) {
   .actions { flex-direction: column; }
   .actions .primary, .actions .secondary { width: 100%; }
+  /* Place current day at left, next day at right on mobile */
+  .day-actions { width: 100%; justify-content: space-between; }
+  .day-actions .current-day { margin-right: auto; }
+  .day-actions #nextDay { margin-left: auto; }
 }
 
 .app-footer { display: flex; justify-content: space-between; padding: 14px 24px; color: var(--muted); border-top: 1px solid rgba(255,255,255,0.08); margin-top: 24px; }
