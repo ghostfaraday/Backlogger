@@ -55,3 +55,20 @@ Key commits
 
 Restore
 - Use the git tag “design-snapshot-2025-08-31b” to check out this design state (post-header/mobile polish).
+
+---
+
+## Snapshot: 2025-08-31 (Records & Trade Log expansion)
+Tag: design-snapshot-2025-08-31c
+
+Highlights
+- Records view promoted to analytics hub: filters (range/strategy), totals chips, weekly comparison table, discipline snapshot bars, milestone timeline; balance/MPI sections scaffolded
+- Weekly reports enriched with wins, losses, endBalance, mpiAtEnd, and per-week trades list for deep analysis
+- Trade Log redesigned: filters, summary chips, weekly report cards with day pills, and a detail drawer with tabs (Overview, Days, Trades, Rules)
+
+Key commits
+- 3bc6096 — Records: filters, totals chips, comparison table, discipline snapshot, timeline scaffolding; enrich weekly reports with wins/losses/mpiAtEnd
+- 1e44a3f — Trade Log: filters, summary chips, weekly cards, detail drawer with tabs; integrate with reports data
+
+Restore
+- Use the git tag “design-snapshot-2025-08-31c” to check out this state.
