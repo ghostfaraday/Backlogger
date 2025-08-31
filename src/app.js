@@ -455,7 +455,10 @@ function updateCurrentDayUI() {
   // Show End Week button only on Friday
   const isFriday = idx === 4;
   endBtn.style.display = isFriday ? '' : 'none';
-  nextBtn.disabled = isFriday;
+  // On Friday, repurpose Next to return to Monday
+  nextBtn.textContent = isFriday ? 'Return to Monday' : 'Next Day';
+  nextBtn.dataset.mode = isFriday ? 'return' : 'next';
+  nextBtn.disabled = false;
 }
 function updateDailySummary() {
   const el = document.getElementById('dailySummary');
@@ -473,12 +476,16 @@ function markNoTradeToday() {
 }
 function gotoNextDay() {
   if (!state.currentChallenge) return;
-  if (state.currentChallenge.dayIndex < 4) {
-    state.currentChallenge.dayIndex += 1;
-  updateCurrentDayUI();
-    updateDailySummary();
-    persistAndRender();
+  const idx = state.currentChallenge.dayIndex;
+  if (idx >= 4) {
+    // Friday -> return to Monday
+    state.currentChallenge.dayIndex = 0;
+  } else {
+    state.currentChallenge.dayIndex = idx + 1;
   }
+  updateCurrentDayUI();
+  updateDailySummary();
+  persistAndRender();
 }
 function calcRuleAdherence(trades) {
   if (!trades.length) return { overall: 0, strategy: 0, tradeMgmt: 0, riskMgmt: 0, plan: 0 };
