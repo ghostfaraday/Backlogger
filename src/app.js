@@ -315,10 +315,15 @@ function addTrade(formData) {
   const riskPct = parseFloat(formData.get('riskPct') || state.settings.baseRiskPct);
   const grade = formData.get('grade');
   const notes = formData.get('notes') || '';
-  const ruleStrategy = !!formData.get('ruleStrategy');
-  const ruleTradeMgmt = !!formData.get('ruleTradeMgmt');
-  const ruleRiskMgmt = !!formData.get('ruleRiskMgmt');
-  const rulePlan = !!formData.get('rulePlan');
+  const ruleStrategyRating = parseInt(formData.get('ruleStrategyRating') || '0', 10);
+  const ruleTradeMgmtRating = parseInt(formData.get('ruleTradeMgmtRating') || '0', 10);
+  const ruleRiskMgmtRating = parseInt(formData.get('ruleRiskMgmtRating') || '0', 10);
+  const rulePlanRating = parseInt(formData.get('rulePlanRating') || '0', 10);
+  // Consider 4+ stars as adherence "true"
+  const ruleStrategy = ruleStrategyRating >= 4;
+  const ruleTradeMgmt = ruleTradeMgmtRating >= 4;
+  const ruleRiskMgmt = ruleRiskMgmtRating >= 4;
+  const rulePlan = rulePlanRating >= 4;
   const pair = state.currentChallenge.pair; // Use challenge pair, not selector
 
   // Validation
@@ -400,7 +405,8 @@ function addTrade(formData) {
     pair,
     entry, stop, exit,
     riskPct, grade, notes, ruleFollowed,
-    ruleStrategy, ruleTradeMgmt, ruleRiskMgmt, rulePlan,
+  ruleStrategy, ruleTradeMgmt, ruleRiskMgmt, rulePlan,
+  ruleStrategyRating, ruleTradeMgmtRating, ruleRiskMgmtRating, rulePlanRating,
     ruleSummary: `${ruleStrategy ? 'S' : 's'}${ruleTradeMgmt ? 'T' : 't'}${ruleRiskMgmt ? 'R' : 'r'}${rulePlan ? 'P' : 'p'}`,
     rMultiple: parseFloat(rMultiple.toFixed(2)),
     pl,
@@ -477,10 +483,10 @@ function gotoNextDay() {
 function calcRuleAdherence(trades) {
   if (!trades.length) return { overall: 0, strategy: 0, tradeMgmt: 0, riskMgmt: 0, plan: 0 };
   const tot = trades.length;
-  const strategy = trades.filter(t => t.ruleStrategy).length / tot * 100;
-  const tradeMgmt = trades.filter(t => t.ruleTradeMgmt).length / tot * 100;
-  const riskMgmt = trades.filter(t => t.ruleRiskMgmt).length / tot * 100;
-  const plan = trades.filter(t => t.rulePlan).length / tot * 100;
+  const strategy = trades.filter(t => t.ruleStrategyRating >= 4).length / tot * 100;
+  const tradeMgmt = trades.filter(t => t.ruleTradeMgmtRating >= 4).length / tot * 100;
+  const riskMgmt = trades.filter(t => t.ruleRiskMgmtRating >= 4).length / tot * 100;
+  const plan = trades.filter(t => t.rulePlanRating >= 4).length / tot * 100;
   const overall = trades.filter(t => t.ruleFollowed).length / tot * 100;
   return { overall, strategy, tradeMgmt, riskMgmt, plan };
 }
@@ -569,3 +575,24 @@ if (weekStartInput) {
   weekStartInput.addEventListener('blur', syncHint);
   syncHint();
 }
+
+// UX: star ratings for rules
+function initRatings() {
+  document.querySelectorAll('.rating').forEach(group => {
+    const name = group.getAttribute('data-name');
+    const hidden = document.querySelector(`input[name="${name}"]`) || document.querySelector(`input[name="${name}"]`);
+    const stars = Array.from(group.querySelectorAll('.star'));
+    const sync = (val) => {
+      stars.forEach(s => s.classList.toggle('is-on', parseInt(s.dataset.val, 10) <= val));
+      const hiddenInput = group.parentElement.querySelector(`input[name="${name}"]`);
+      if (hiddenInput) hiddenInput.value = String(val);
+    };
+    // default
+    const defaultVal = parseInt(group.parentElement.querySelector(`input[name="${name}"]`)?.value || '5', 10);
+    sync(defaultVal);
+    stars.forEach(star => {
+      star.addEventListener('click', () => sync(parseInt(star.dataset.val, 10)));
+    });
+  });
+}
+initRatings();

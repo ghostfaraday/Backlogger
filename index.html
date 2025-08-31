@@ -153,13 +153,13 @@
           <div class="row space-between">
             <div class="pill blue" id="challengeInfo">No active challenge</div>
             <div class="day-actions">
-              <span class="current-day" id="currentDay">—</span>
-              <button class="secondary" id="nextDay" disabled>Next Day</button>
-              <button class="secondary" id="endWeek" style="display:none">End Week & Report</button>
+              <span class="current-day pill small" id="currentDay">—</span>
+              <button class="secondary small" id="nextDay" disabled>Next Day</button>
+              <button class="secondary small" id="endWeek" style="display:none">End Week & Report</button>
             </div>
           </div>
           <div class="row">
-            <div class="pill" id="dailySummary">Today: 0 trades • P/L $0</div>
+            <div class="pill small" id="dailySummary">Today: 0 trades • P/L $0</div>
           </div>
           <div class="logger">
             <h3>Log Trade</h3>
@@ -182,17 +182,57 @@
               </div>
               <div class="rules-card">
                 <div class="rules-title">Trade Rules</div>
-                <div class="rules-grid">
-                  <label class="rule-item"><input type="checkbox" name="ruleStrategy" checked> Strategy rules</label>
-                  <label class="rule-item"><input type="checkbox" name="ruleTradeMgmt" checked> Trade management</label>
-                  <label class="rule-item"><input type="checkbox" name="ruleRiskMgmt" checked> Risk management</label>
-                  <label class="rule-item"><input type="checkbox" name="rulePlan" checked> Trading plan</label>
+                <div class="rules-list">
+                  <div class="rule-row">
+                    <div class="rule-label">Strategy rules</div>
+                    <div class="rating" data-name="ruleStrategyRating" aria-label="Rate Strategy rules 1 to 5">
+                      <span class="star" data-val="1">★</span>
+                      <span class="star" data-val="2">★</span>
+                      <span class="star" data-val="3">★</span>
+                      <span class="star" data-val="4">★</span>
+                      <span class="star" data-val="5">★</span>
+                    </div>
+                    <input type="hidden" name="ruleStrategyRating" value="5" />
+                  </div>
+                  <div class="rule-row">
+                    <div class="rule-label">Trade management</div>
+                    <div class="rating" data-name="ruleTradeMgmtRating" aria-label="Rate Trade management 1 to 5">
+                      <span class="star" data-val="1">★</span>
+                      <span class="star" data-val="2">★</span>
+                      <span class="star" data-val="3">★</span>
+                      <span class="star" data-val="4">★</span>
+                      <span class="star" data-val="5">★</span>
+                    </div>
+                    <input type="hidden" name="ruleTradeMgmtRating" value="5" />
+                  </div>
+                  <div class="rule-row">
+                    <div class="rule-label">Risk management</div>
+                    <div class="rating" data-name="ruleRiskMgmtRating" aria-label="Rate Risk management 1 to 5">
+                      <span class="star" data-val="1">★</span>
+                      <span class="star" data-val="2">★</span>
+                      <span class="star" data-val="3">★</span>
+                      <span class="star" data-val="4">★</span>
+                      <span class="star" data-val="5">★</span>
+                    </div>
+                    <input type="hidden" name="ruleRiskMgmtRating" value="5" />
+                  </div>
+                  <div class="rule-row">
+                    <div class="rule-label">Trading plan</div>
+                    <div class="rating" data-name="rulePlanRating" aria-label="Rate Trading plan 1 to 5">
+                      <span class="star" data-val="1">★</span>
+                      <span class="star" data-val="2">★</span>
+                      <span class="star" data-val="3">★</span>
+                      <span class="star" data-val="4">★</span>
+                      <span class="star" data-val="5">★</span>
+                    </div>
+                    <input type="hidden" name="rulePlanRating" value="5" />
+                  </div>
                 </div>
               </div>
               <div class="form-row">
                 <div class="actions">
                   <button class="primary" type="submit">Add Trade</button>
-                  <button class="secondary" type="button" id="markNoTrade" disabled>No Trade Today</button>
+                  <button class="secondary" type="button" id="markNoTrade" disabled>No Trade</button>
                 </div>
               </div>
             </form>

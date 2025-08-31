@@ -112,6 +112,7 @@ body {
 
 .pill-group { display: flex; gap: 8px; }
 .pill { padding: 6px 10px; border-radius: 999px; font-weight: 600; font-size: 12px; border: 1px solid rgba(255,255,255,0.12); }
+.pill.small { padding: 4px 8px; font-size: 11px; }
 .pill.green { color: #032b23; background: var(--green); border-color: transparent; }
 .pill.blue { color: #0b223b; background: var(--blue); border-color: transparent; }
 .pill.red { color: #3b0b0b; background: var(--red); border-color: transparent; }
@@ -200,6 +201,7 @@ button.primary:hover {
 button.secondary { 
   background: rgba(255,255,255,0.08); 
 }
+button.small { height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; }
 button.secondary:hover { 
   background: rgba(255,255,255,0.12); 
 }
@@ -254,10 +256,18 @@ input[type="checkbox"] { height: auto; }
   padding: 12px;
 }
 .rules-title { color: var(--muted); font-size: 12px; margin-bottom: 8px; font-weight: 600; }
-.rules-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px 12px; }
-.rule-item { display: flex; align-items: center; gap: 8px; }
+.rules-list { display: grid; gap: 10px; }
+.rule-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; }
+.rule-label { color: var(--text); font-weight: 600; }
+.rating { display: inline-flex; gap: 4px; }
+.star { cursor: pointer; color: rgba(255,255,255,0.25); font-size: 18px; }
+.star.is-on { color: var(--yellow); text-shadow: 0 0 8px rgba(245,158,11,0.3); }
 
 .actions { display: flex; gap: 8px; }
+@media (max-width: 480px) {
+  .actions { flex-direction: column; }
+  .actions .primary, .actions .secondary { width: 100%; }
+}
 
 .app-footer { display: flex; justify-content: space-between; padding: 14px 24px; color: var(--muted); border-top: 1px solid rgba(255,255,255,0.08); margin-top: 24px; }
 
