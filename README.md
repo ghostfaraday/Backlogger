@@ -22,13 +22,10 @@
 **👉 [PROJECT_DOCUMENTATION.md](./PROJECT_DOCUMENTATION.md) 👈**
 
 **This is our complete blueprint** containing:
-- Full feature specifications from all discussions
-- Psychological training methodology
-- Technical implementation details
-- Success metrics and roadmap
 
 **ALL CONTRIBUTORS AND AI ASSISTANTS** must read this document before making any changes to ensure we stay true to the original vision.
 
+Design snapshots and UI changes are archived in `DESIGN_TIMELINE.md` so we can restore or compare designs across iterations.
 ## 🚀 Current Status
 
 - ✅ Core game mechanics implemented
