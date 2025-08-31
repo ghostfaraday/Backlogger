@@ -141,16 +141,13 @@ function renderDashboard() {
   state.stats.mpi = calcMPI(state.stats);
   $('#mpi').textContent = fmt(state.stats.mpi);
 
-  const { name, progressToNext, nextName, cumulative, nextBoundary } = deriveLevel(state.stats.mpi || 0);
+  const { name, progressToNext, nextName, cumulative } = deriveLevel(state.stats.mpi || 0);
   $('#levelName').textContent = name;
   $('#rankBadge .rank-title').textContent = name;
   // Fill bar proportionally across total levels (so Novice shows first segment growth)
   $('#levelProgress').style.width = `${Math.round(cumulative)}%`;
-  // Position next-level marker at next boundary
-  const marker = document.getElementById('nextLevelMarker');
-  if (marker) marker.style.left = `${nextBoundary}%`;
-  const nextEl = document.getElementById('nextLevel');
-  if (nextEl) nextEl.textContent = nextName ? `Next: ${nextName}` : `Max level reached`;
+  const nextEl = document.getElementById('nextLevelName');
+  if (nextEl) nextEl.textContent = nextName ? nextName : '—';
 
   $('#biggestProfit').textContent = `$${fmt(state.account.biggestProfit)}`;
   $('#biggestLoss').textContent = `$${fmt(Math.abs(state.account.biggestLoss))}`;
