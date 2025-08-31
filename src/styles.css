@@ -291,6 +291,40 @@ input[type="checkbox"] { height: auto; }
   background: rgba(255,255,255,0.04);
 }
 
+/* ---- Log view styles ---- */
+.cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.log-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; }
+.log-card header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.log-card .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 8px; }
+.log-card .pill-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.log-card .pill.day { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); }
+
+.drawer { position: fixed; inset: 0; z-index: 50; }
+.drawer[hidden] { display: none; }
+.drawer-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+.drawer-panel { position: absolute; right: 0; top: 0; bottom: 0; width: min(720px, 100%); background: var(--panel); border-left: 1px solid rgba(255,255,255,0.08); box-shadow: var(--shadow); overflow: auto; }
+.drawer-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.drawer-title { font-family: Orbitron, Inter, sans-serif; font-weight: 700; letter-spacing: 0.5px; }
+.tabs { display: flex; gap: 8px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.tab { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--text); border-radius: 999px; padding: 6px 10px; cursor: pointer; }
+.tab.is-active { border-color: var(--accent); color: var(--accent); background: rgba(0,214,255,0.08); }
+.tab-body { padding: 12px; }
+.tab-panel { display: none; }
+.tab-panel.is-active { display: block; }
+
+.days-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.day-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px; }
+.day-card .head { display: flex; justify-content: space-between; align-items: baseline; }
+.day-card .muted { font-size: 12px; }
+
+@media (max-width: 1024px) {
+  .cards { grid-template-columns: 1fr; }
+  .days-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .days-grid { grid-template-columns: 1fr; }
+}
+
 /* Day track (Mon-Fri) */
 /* Current day + actions */
 .day-actions { display: flex; gap: 8px; align-items: center; }

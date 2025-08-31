@@ -400,8 +400,8 @@ function endWeek() {
     pair: state.currentChallenge.pair,
     weekRange: formatWeekRange(state.currentChallenge.weekStart),
     weekPL,
-  wins,
-  losses,
+    wins,
+    losses,
     winRate: wr,
     pf,
     avgRMultiple,
@@ -411,9 +411,26 @@ function endWeek() {
     bestTrade: bestTrade.pl > -Infinity ? bestTrade : null,
     worstTrade: worstTrade.pl < Infinity ? worstTrade : null,
     totalTrades: allTrades.length,
-  endBalance: state.account.balance,
-  mpiAtEnd: calcMPI(state.stats),
+    endBalance: state.account.balance,
+    mpiAtEnd: calcMPI(state.stats),
     days: summarizeDays(state.currentChallenge.days),
+    trades: allTrades.map(t => ({
+      time: t.time,
+      pair: t.pair,
+      rMultiple: t.rMultiple,
+      pl: t.pl,
+      grade: t.grade,
+      ruleSummary: t.ruleSummary,
+      entry: t.entry,
+      stop: t.stop,
+      exit: t.exit,
+      riskPct: t.riskPct,
+      ruleStrategyRating: t.ruleStrategyRating,
+      ruleTradeMgmtRating: t.ruleTradeMgmtRating,
+      ruleRiskMgmtRating: t.ruleRiskMgmtRating,
+      rulePlanRating: t.rulePlanRating,
+      notes: t.notes || ''
+    })),
   });
   
   // Reset weekly tracking
@@ -432,238 +449,233 @@ function endWeek() {
   switchView('log');
 }
 
-function addTrade(formData) {
-  if (!state.currentChallenge) return;
+// Render Trade Log (weekly analyses)
+function renderLog() {
+  const rangeSel = document.getElementById('logRange');
+  const stratSel = document.getElementById('logStrategy');
+  const sortSel = document.getElementById('logSort');
+  const searchInput = document.getElementById('logSearch');
+  if (!rangeSel || !stratSel || !sortSel) return;
 
-  const entry = parseFloat(formData.get('entry')); 
-  const stop = parseFloat(formData.get('stop')); 
-  const exit = parseFloat(formData.get('exit')); 
-  const riskPct = parseFloat(formData.get('riskPct') || state.settings.baseRiskPct);
-  const grade = formData.get('grade');
-  const notes = formData.get('notes') || '';
-  const ruleStrategyRating = parseInt(formData.get('ruleStrategyRating') || '0', 10);
-  const ruleTradeMgmtRating = parseInt(formData.get('ruleTradeMgmtRating') || '0', 10);
-  const ruleRiskMgmtRating = parseInt(formData.get('ruleRiskMgmtRating') || '0', 10);
-  const rulePlanRating = parseInt(formData.get('rulePlanRating') || '0', 10);
-  // Consider 4+ stars as adherence "true"
-  const ruleStrategy = ruleStrategyRating >= 4;
-  const ruleTradeMgmt = ruleTradeMgmtRating >= 4;
-  const ruleRiskMgmt = ruleRiskMgmtRating >= 4;
-  const rulePlan = rulePlanRating >= 4;
-  const pair = state.currentChallenge.pair; // Use challenge pair, not selector
+  const rangeVal = rangeSel.value;
+  const stratVal = stratSel.value;
+  const sortVal = sortSel.value;
+  const q = (searchInput?.value || '').trim().toLowerCase();
 
-  // Validation
-  if (isNaN(entry) || isNaN(stop) || isNaN(exit) || isNaN(riskPct)) {
-    alert('Please enter valid numbers for all price fields');
-    return;
+  // Filter
+  let reports = [...(state.reports || [])];
+  if (stratVal !== 'all') {
+    reports = reports.filter(r => r.strategy === stratVal);
+  }
+  if (q) {
+    reports = reports.filter(r => {
+      const hay = [r.weekId, r.weekRange, r.pair, r.strategy].join(' ').toLowerCase();
+      const notesMatch = Array.isArray(r.trades) && r.trades.some(t => (t.notes || '').toLowerCase().includes(q));
+      return hay.includes(q) || notesMatch;
+    });
   }
 
-  const riskDollars = state.account.balance * (riskPct / 100);
-  // Fixed R multiple calculation: properly handle long/short direction
-  const isLong = stop < entry; // If stop below entry, it's a long trade
-  const riskPerUnit = Math.abs(entry - stop);
-  let rMultiple = 0;
-  if (riskPerUnit > 0) {
-    if (isLong) {
-      rMultiple = (exit - entry) / riskPerUnit; // Long: profit when exit > entry
+  // Range
+  const scoped = rangeVal === 'all' ? reports : reports.slice(0, parseInt(rangeVal, 10));
+
+  // Sort
+  const sorted = [...scoped].sort((a, b) => {
+    switch (sortVal) {
+      case 'pl': return (b.weekPL || 0) - (a.weekPL || 0);
+      case 'pf': return (b.pf || 0) - (a.pf || 0);
+      case 'wr': return (b.winRate || 0) - (a.winRate || 0);
+      case 'trades': return (b.totalTrades || 0) - (a.totalTrades || 0);
+      case 'week':
+      default: return 0; // already newest first
+    }
+  });
+
+  // Summary chips
+  const weeksCount = sorted.length;
+  const totalTrades = sorted.reduce((a, r) => a + (r.totalTrades || 0), 0);
+  const wins = sorted.reduce((a, r) => a + (r.wins || 0), 0);
+  const losses = sorted.reduce((a, r) => a + (r.losses || 0), 0);
+  const netPL = sorted.reduce((a, r) => a + (r.weekPL || 0), 0);
+  const wr = (wins + losses) ? (wins / (wins + losses)) * 100 : 0;
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setText('logWeeks', fmt(weeksCount));
+  setText('logTotalTrades', fmt(totalTrades));
+  setText('logWins', fmt(wins));
+  setText('logLosses', fmt(losses));
+  setText('logWR', `${fmt2(wr)}%`);
+  setText('logNetPL', signFmt(netPL));
+
+  const cards = document.getElementById('logCards');
+  const empty = document.getElementById('logEmpty');
+  if (!cards || !empty) return;
+  cards.innerHTML = '';
+  empty.style.display = sorted.length ? 'none' : '';
+
+  sorted.forEach((r, idx) => {
+    const card = document.createElement('div');
+    card.className = 'log-card';
+    const dayPills = (r.days || []).map(d => `<span class="pill day small">${(d.key||'').slice(0,3).toUpperCase()} • ${signFmt(d.pl||0)} • ${fmt(d.trades||0)}</span>`).join(' ');
+    card.innerHTML = `
+      <header>
+        <div>
+          <div><strong>Week ${r.weekId}</strong> • ${r.weekRange || ''}</div>
+          <div class="muted">${r.strategy} • ${r.pair}</div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div class="pill ${r.weekPL>=0?'green':'red'}">${signFmt(r.weekPL||0)}</div>
+          <button class="secondary small" data-view-week="${idx}">View Details</button>
+        </div>
+      </header>
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">PF</div><div class="kpi-value">${r.pf===Infinity?'∞':fmt2(r.pf||0)}</div></div>
+        <div class="kpi"><div class="kpi-label">Win Rate</div><div class="kpi-value">${fmt2(r.winRate||0)}%</div></div>
+        <div class="kpi"><div class="kpi-label">Avg R</div><div class="kpi-value">${fmt2(r.avgRMultiple||0)}</div></div>
+        <div class="kpi"><div class="kpi-label">Trades</div><div class="kpi-value">${fmt(r.totalTrades||0)}</div></div>
+        <div class="kpi"><div class="kpi-label">Rules</div><div class="kpi-value">${fmt2(r.ruleAdherence||0)}%</div></div>
+      </div>
+      <div class="pill-row">${dayPills}</div>
+    `;
+    cards.appendChild(card);
+  });
+
+  // Wire detail buttons
+  cards.querySelectorAll('[data-view-week]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-view-week'), 10);
+      openWeekDrawer(sorted[idx]);
+    });
+  });
+}
+
+function openWeekDrawer(report) {
+  const drawer = document.getElementById('logDrawer');
+  if (!drawer) return;
+  drawer.hidden = false;
+  // Header
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('dwTitle', `Week ${report.weekId}`);
+  set('dwSub', `${report.weekRange || ''} • ${report.strategy} • ${report.pair}`);
+  set('dwPL', signFmt(report.weekPL || 0));
+  set('dwPF', report.pf===Infinity?'∞':fmt2(report.pf||0));
+  set('dwWR', `${fmt2(report.winRate || 0)}%`);
+  set('dwTrades', fmt(report.totalTrades || 0));
+  set('dwEndBal', `$${fmt(report.endBalance || state.account.balance)}`);
+  set('dwMPI', fmt(report.mpiAtEnd || state.stats.mpi));
+
+  // Overview charts placeholders
+  const bc = document.getElementById('dwBalanceChart');
+  if (bc) { bc.innerHTML = '<span class="muted">Balance sparkline (Mon–Fri)</span>'; }
+  const gr = document.getElementById('dwGrades');
+  if (gr) { gr.innerHTML = `<span class="muted">Grades A/B/C: ${report.gradeDistribution?`A${report.gradeDistribution.A} B${report.gradeDistribution.B} C${report.gradeDistribution.C}`:'—'}</span>`; }
+
+  // Days grid
+  const daysEl = document.getElementById('dwDays');
+  if (daysEl) {
+    daysEl.innerHTML = '';
+    (report.days || []).forEach(d => {
+      const div = document.createElement('div');
+      div.className = 'day-card';
+      div.innerHTML = `
+        <div class="head"><strong>${(d.key||'').charAt(0).toUpperCase()+ (d.key||'').slice(1)}</strong><span class="pill ${d.pl>=0?'green':'red'} small">${signFmt(d.pl||0)}</span></div>
+        <div class="muted">${d.date || ''}</div>
+        <div class="muted">Trades: ${fmt(d.trades||0)} • WR: ${fmt2(d.wr||0)}%</div>
+        ${d.noTrade?'<div class="pill small">No Trade</div>':''}
+      `;
+      daysEl.appendChild(div);
+    });
+  }
+
+  // Trades table
+  const tBody = document.querySelector('#dwTradesTbl tbody');
+  if (tBody) {
+    tBody.innerHTML = '';
+    if (Array.isArray(report.trades) && report.trades.length) {
+      report.trades.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${new Date(t.time).toLocaleDateString()}</td>
+          <td>${t.pair}</td>
+          <td>${fmt2(t.rMultiple)}</td>
+          <td>${signFmt(t.pl)}</td>
+          <td>${t.grade}</td>
+          <td>${t.ruleSummary || ''}</td>
+        `;
+        tBody.appendChild(tr);
+      });
     } else {
-      rMultiple = (entry - exit) / riskPerUnit; // Short: profit when exit < entry  
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="6" class="muted">Trade details not available for this report.</td>`;
+      tBody.appendChild(tr);
     }
   }
-  const pl = Math.round(rMultiple * riskDollars);
 
-  // Update stats and account
-  state.account.balance += pl;
-  state.account.equity = state.account.balance;
-  state.account.dailyPL += pl;
-  state.account.weeklyPL += pl;
-  if (pl > 0) state.stats.wins += 1; else if (pl < 0) state.stats.losses += 1;
-  if (pl > 0) state.stats.sumProfit += pl; else state.stats.sumLossAbs += Math.abs(pl);
-  if (pl > state.account.biggestProfit) { state.account.biggestProfit = pl; awardBadge('biggestWinRecord'); }
-  if (pl < state.account.biggestLoss) state.account.biggestLoss = pl;
-  if (state.account.balance > state.account.highWater) { state.account.highWater = state.account.balance; awardBadge('newHighWater'); }
-
-  // Max drawdown approximation: track distance from highWater
-  state.stats.maxDrawdown = Math.max(state.stats.maxDrawdown, state.account.highWater - state.account.balance);
-
-  // Enhanced badge and penalty system
-  const oldMPI = state.stats.mpi;
-  const newMPI = calcMPI(state.stats);
-  
-  // Dollar milestones
-  if (pl >= 100 && !state.badges.includes('firstWin100')) awardBadge('firstWin100');
-  if (pl >= 1000 && !state.badges.includes('firstWin1000')) awardBadge('firstWin1000');
-  if (pl >= 5000 && !state.badges.includes('firstWin5000')) awardBadge('firstWin5000');
-
-  // Risk management badges
-  const avgWin = state.stats.wins ? state.stats.sumProfit / state.stats.wins : 0;
-  if (pl < 0 && avgWin > 0 && Math.abs(pl) < avgWin) awardBadge('controlledLoss');
-  
-  // Profit factor achievements
-  const pf = calcProfitFactor(state.stats.sumProfit, state.stats.sumLossAbs);
-  if (pf >= 2 && !state.badges.includes('profitFactor2')) awardBadge('profitFactor2');
-  if (pf >= 3 && !state.badges.includes('profitFactor3')) awardBadge('profitFactor3');
-  
-  // Drawdown control
-  const ddPct = state.account.highWater > 0 ? (state.stats.maxDrawdown / state.account.highWater) * 100 : 0;
-  if (ddPct < 5 && state.stats.wins + state.stats.losses >= 10) awardBadge('controlledDD5');
-  if (ddPct < 2 && state.stats.wins + state.stats.losses >= 20) awardBadge('controlledDD2');
-
-  // Win streak tracking (simplified - would need proper streak counter)
-  if (pl > 0 && state.currentChallenge.trades.length >= 2) {
-    const lastTwo = state.currentChallenge.trades.slice(0, 2);
-    if (lastTwo.every(t => t.pl > 0)) awardBadge('winStreak3');
+  // Rules adherence bars
+  const rb = document.getElementById('dwRulesBars');
+  if (rb) {
+    rb.innerHTML = '';
+    const cats = report.adherenceByCat || {};
+    const add = (label, val) => {
+      const row = document.createElement('div');
+      row.className = 'bar';
+      const pct = Math.round(val || 0);
+      row.innerHTML = `<div class="bar-label">${label}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-val">${fmt2(val||0)}%</div>`;
+      rb.appendChild(row);
+    };
+    add('Strategy', cats.strategy);
+    add('Trade Mgmt', cats.tradeMgmt);
+    add('Risk Mgmt', cats.riskMgmt);
+    add('Plan', cats.plan);
+    add('Overall', (report.ruleAdherence || cats.overall));
   }
 
-  // Rule violations penalty
-  const ruleFollowed = ruleStrategy && ruleTradeMgmt && ruleRiskMgmt && rulePlan;
-  if (!ruleFollowed) {
-    // Deduct points or mark violation (placeholder for points system)
-  }
-
-  // Over-risking penalty  
-  if (riskPct > state.settings.baseRiskPct * 2) {
-    // Flag as over-risking (could reduce points later)
-  }
-
-  const trade = {
-    time: Date.now(),
-    pair,
-    entry, stop, exit,
-    riskPct, grade, notes, ruleFollowed,
-  ruleStrategy, ruleTradeMgmt, ruleRiskMgmt, rulePlan,
-  ruleStrategyRating, ruleTradeMgmtRating, ruleRiskMgmtRating, rulePlanRating,
-    ruleSummary: `${ruleStrategy ? 'S' : 's'}${ruleTradeMgmt ? 'T' : 't'}${ruleRiskMgmt ? 'R' : 'r'}${rulePlan ? 'P' : 'p'}`,
-    rMultiple: parseFloat(rMultiple.toFixed(2)),
-    pl,
-  };
-  // Insert into current day
-  const day = state.currentChallenge.days[state.currentChallenge.dayIndex];
-  day.trades.unshift(trade);
-  updateDailySummary();
-  renderTrades();
-}
-
-// ---- Challenge day/week helpers ----
-const DAY_KEYS = ['monday','tuesday','wednesday','thursday','friday'];
-function getMondayISO(date) {
-  const d = new Date(date);
-  const day = d.getDay(); // 0..6, where 1 is Monday
-  const diff = (day === 0 ? -6 : 1 - day); // move to Monday
-  d.setDate(d.getDate() + diff);
-  d.setHours(0,0,0,0);
-  return d.toISOString().slice(0,10);
-}
-function buildWeekDays(weekStartISO) {
-  const base = new Date(weekStartISO);
-  const arr = [];
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
-    arr.push({ key: DAY_KEYS[i], date: d.toISOString().slice(0,10), trades: [], noTrade: false });
-  }
-  return arr;
-}
-function formatWeekRange(weekStartISO) {
-  const start = new Date(weekStartISO);
-  const end = new Date(weekStartISO);
-  end.setDate(end.getDate() + 4);
-  return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
-}
-function updateCurrentDayUI() {
-  const el = document.getElementById('currentDay');
-  const endBtn = document.getElementById('endWeek');
-  const nextBtn = document.getElementById('nextDay');
-  if (!state.currentChallenge || !el) return;
-  const idx = state.currentChallenge.dayIndex;
-  const label = DAY_KEYS[idx]?.charAt(0).toUpperCase() + DAY_KEYS[idx]?.slice(1) || '—';
-  el.textContent = label;
-  // Show End Week button only on Friday
-  const isFriday = idx === 4;
-  endBtn.style.display = isFriday ? '' : 'none';
-  // On Friday, repurpose Next to return to Monday
-  nextBtn.textContent = isFriday ? 'Return to Monday' : 'Next Day';
-  nextBtn.dataset.mode = isFriday ? 'return' : 'next';
-  nextBtn.disabled = false;
-}
-function updateDailySummary() {
-  const el = document.getElementById('dailySummary');
-  if (!el || !state.currentChallenge) return;
-  const d = state.currentChallenge.days[state.currentChallenge.dayIndex];
-  const dayPL = d.trades.reduce((a, t) => a + t.pl, 0);
-  el.textContent = `Today: ${d.trades.length} trades • P/L ${signFmt(dayPL)}`;
-}
-function markNoTradeToday() {
-  if (!state.currentChallenge) return;
-  const d = state.currentChallenge.days[state.currentChallenge.dayIndex];
-  d.noTrade = true;
-  updateDailySummary();
-  persistAndRender();
-}
-function gotoNextDay() {
-  if (!state.currentChallenge) return;
-  const idx = state.currentChallenge.dayIndex;
-  if (idx >= 4) {
-    // Friday -> return to Monday
-    state.currentChallenge.dayIndex = 0;
-  } else {
-    state.currentChallenge.dayIndex = idx + 1;
-  }
-  updateCurrentDayUI();
-  updateDailySummary();
-  persistAndRender();
-}
-function calcRuleAdherence(trades) {
-  if (!trades.length) return { overall: 0, strategy: 0, tradeMgmt: 0, riskMgmt: 0, plan: 0 };
-  const tot = trades.length;
-  const strategy = trades.filter(t => t.ruleStrategyRating >= 4).length / tot * 100;
-  const tradeMgmt = trades.filter(t => t.ruleTradeMgmtRating >= 4).length / tot * 100;
-  const riskMgmt = trades.filter(t => t.ruleRiskMgmtRating >= 4).length / tot * 100;
-  const plan = trades.filter(t => t.rulePlanRating >= 4).length / tot * 100;
-  const overall = trades.filter(t => t.ruleFollowed).length / tot * 100;
-  return { overall, strategy, tradeMgmt, riskMgmt, plan };
-}
-function summarizeDays(days) {
-  return days.map(d => ({
-    key: d.key,
-    date: d.date,
-    noTrade: d.noTrade,
-    trades: d.trades.length,
-    pl: d.trades.reduce((a, t) => a + t.pl, 0),
-    wr: (() => { const w = d.trades.filter(t => t.pl>0).length; const l = d.trades.filter(t=>t.pl<0).length; return (w+l)? (w/(w+l))*100 : 0; })(),
-  }));
-}
-
-function saveSettings() {
-  const startingBalance = parseFloat($('#startingBalance').value) || defaultSettings.startingBalance;
-  const baseRiskPct = parseFloat($('#baseRisk').value) || defaultSettings.baseRiskPct;
-  state.settings.startingBalance = startingBalance;
-  state.settings.baseRiskPct = baseRiskPct;
-  
-  // Only reset if balance changed significantly and user has no active challenge
-  if (Math.abs(startingBalance - state.account.balance) > 1000 && !state.currentChallenge) {
-    const shouldReset = confirm('Reset account balance to new starting amount? This will clear your current progress.');
-    if (shouldReset) {
-      state.account.balance = startingBalance;
-      state.account.equity = startingBalance;
-      state.account.highWater = startingBalance;
-      state.account.dailyPL = 0;
-      state.account.weeklyPL = 0;
-      state.account.biggestProfit = 0;
-      state.account.biggestLoss = 0;
-      state.account.bestWeek = 0;
-      state.stats.wins = 0;
-      state.stats.losses = 0;
-      state.stats.sumProfit = 0;
-      state.stats.sumLossAbs = 0;
-      state.stats.maxDrawdown = 0;
-      state.stats.mpi = 0;
-      state.badges = [];
+  // Violations list (simplified: trades with any rating < 4)
+  const viol = document.getElementById('dwViolations');
+  if (viol) {
+    viol.innerHTML = '';
+    if (Array.isArray(report.trades)) {
+      const bad = report.trades.filter(t => (t.ruleStrategyRating<4)||(t.ruleTradeMgmtRating<4)||(t.ruleRiskMgmtRating<4)||(t.rulePlanRating<4));
+      if (!bad.length) {
+        viol.innerHTML = '<div class="muted">No rule violations recorded.</div>';
+      } else {
+        const ul = document.createElement('ul');
+        bad.forEach(t => {
+          const li = document.createElement('li');
+          li.innerHTML = `${new Date(t.time).toLocaleDateString()} — ${t.pair} • ${signFmt(t.pl)} • Ratings S${t.ruleStrategyRating}/T${t.ruleTradeMgmtRating}/R${t.ruleRiskMgmtRating}/P${t.rulePlanRating}`;
+          ul.appendChild(li);
+        });
+        viol.appendChild(ul);
+      }
+    } else {
+      viol.innerHTML = '<div class="muted">No trade-level data available.</div>';
     }
   }
-  persistAndRender();
+
+  // Tabs
+  const tabs = drawer.querySelectorAll('.tab');
+  const panels = drawer.querySelectorAll('.tab-panel');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('is-active'));
+      panels.forEach(p => p.classList.remove('is-active'));
+      tab.classList.add('is-active');
+      const id = tab.getAttribute('data-tab');
+      drawer.querySelector(`#tab-${id}`).classList.add('is-active');
+    });
+  });
+
+  // Close handlers
+  drawer.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', () => { drawer.hidden = true; }));
 }
 
+// Hook log filters/search
+['logRange','logStrategy','logSort'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', renderLog);
+});
+const logSearch = document.getElementById('logSearch');
+if (logSearch) logSearch.addEventListener('input', () => { renderLog(); });
+
+// Extend persist to render log
 function persistAndRender() {
   store.save(state);
   renderTop();
@@ -672,6 +684,7 @@ function persistAndRender() {
   renderTrades();
   renderReports();
   renderRecords();
+  renderLog();
   updateCurrentDayUI();
   updateDailySummary();
 }

@@ -349,12 +349,117 @@
 
       <!-- LOG VIEW -->
       <section id="view-log" class="view">
-        <article class="card">
-          <header>
-            <h2>Weekly Reports</h2>
-          </header>
-          <ul class="reports" id="reports"></ul>
-        </article>
+        <div class="grid">
+          <article class="card" style="grid-column: span 12;">
+            <header>
+              <h2>Trade Log — Weekly Analyses</h2>
+            </header>
+            <div class="row">
+              <label style="flex:1">Range
+                <select id="logRange">
+                  <option value="all">All</option>
+                  <option value="4">Last 4 weeks</option>
+                  <option value="12">Last 12 weeks</option>
+                  <option value="26">Last 26 weeks</option>
+                </select>
+              </label>
+              <label style="flex:1">Strategy
+                <select id="logStrategy">
+                  <option value="all">All</option>
+                  <option>Breakout</option>
+                  <option>Pullback</option>
+                  <option>Trend</option>
+                  <option>News</option>
+                </select>
+              </label>
+              <label style="flex:1">Sort by
+                <select id="logSort">
+                  <option value="week">Week (new → old)</option>
+                  <option value="pl">P/L (high → low)</option>
+                  <option value="pf">Profit Factor</option>
+                  <option value="wr">Win Rate</option>
+                  <option value="trades">Trades</option>
+                </select>
+              </label>
+              <label style="flex:2">Search
+                <input type="text" id="logSearch" placeholder="Find by notes, pair, or week id" />
+              </label>
+            </div>
+            <div class="chips" style="margin-top:10px;">
+              <div class="chip"><span class="chip-label">Weeks Completed</span><strong id="logWeeks">0</strong></div>
+              <div class="chip"><span class="chip-label">Total Trades</span><strong id="logTotalTrades">0</strong></div>
+              <div class="chip green"><span class="chip-label">Wins</span><strong id="logWins">0</strong></div>
+              <div class="chip red"><span class="chip-label">Losses</span><strong id="logLosses">0</strong></div>
+              <div class="chip blue"><span class="chip-label">Win Rate</span><strong id="logWR">0%</strong></div>
+              <div class="chip"><span class="chip-label">Net P/L</span><strong id="logNetPL">$0</strong></div>
+            </div>
+          </article>
+
+          <article class="card" style="grid-column: span 12;">
+            <div id="logCards" class="cards"></div>
+            <div id="logEmpty" class="muted" style="display:none; text-align:center; padding:16px;">No completed weeks yet.</div>
+          </article>
+        </div>
+
+        <!-- Detail Drawer -->
+        <div id="logDrawer" class="drawer" hidden>
+          <div class="drawer-backdrop" data-close></div>
+          <div class="drawer-panel">
+            <div class="drawer-header">
+              <div>
+                <div class="drawer-title" id="dwTitle">Week —</div>
+                <div class="muted" id="dwSub">—</div>
+              </div>
+              <button class="icon-btn" data-close aria-label="Close">✕</button>
+            </div>
+            <div class="tabs">
+              <button class="tab is-active" data-tab="overview">Overview</button>
+              <button class="tab" data-tab="days">Days</button>
+              <button class="tab" data-tab="trades">Trades</button>
+              <button class="tab" data-tab="rules">Rules</button>
+            </div>
+            <div class="tab-body">
+              <div class="tab-panel is-active" id="tab-overview">
+                <div class="chips">
+                  <div class="chip"><span class="chip-label">P/L</span><strong id="dwPL">$0</strong></div>
+                  <div class="chip"><span class="chip-label">PF</span><strong id="dwPF">—</strong></div>
+                  <div class="chip"><span class="chip-label">Win Rate</span><strong id="dwWR">0%</strong></div>
+                  <div class="chip"><span class="chip-label">Trades</span><strong id="dwTrades">0</strong></div>
+                  <div class="chip"><span class="chip-label">End Balance</span><strong id="dwEndBal">$0</strong></div>
+                  <div class="chip"><span class="chip-label">MPI at End</span><strong id="dwMPI">0</strong></div>
+                </div>
+                <div class="row" style="margin-top:10px;">
+                  <div class="chart" style="flex:1" id="dwBalanceChart"></div>
+                  <div class="chart" style="flex:1" id="dwGrades"></div>
+                </div>
+              </div>
+              <div class="tab-panel" id="tab-days">
+                <div id="dwDays" class="days-grid"></div>
+              </div>
+              <div class="tab-panel" id="tab-trades">
+                <div class="table-wrap">
+                  <table class="table" id="dwTradesTbl">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Pair</th>
+                        <th>R</th>
+                        <th>P/L ($)</th>
+                        <th>Grade</th>
+                        <th>Rules</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="tab-panel" id="tab-rules">
+                <div id="dwRulesBars" class="bars"></div>
+                <div id="dwViolations" style="margin-top:10px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- SETTINGS VIEW -->
