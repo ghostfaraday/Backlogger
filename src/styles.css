@@ -154,6 +154,8 @@ select, input, button {
   font-size: inherit;
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
+/* Full-width helper */
+.full { width: 100%; }
 select:focus, input:focus { 
   outline: none; 
   border-color: var(--accent); 
@@ -279,6 +281,8 @@ input[type="checkbox"] { height: auto; }
   .balance-row { flex-direction: column; gap: 12px; align-items: flex-start; }
   .pill-group { justify-content: flex-start; }
   .big-number { font-size: 24px; }
+  /* Ensure Weekly Challenge controls stack and fill width on mobile */
+  #view-dashboard .challenge-card .row { flex-direction: column; align-items: stretch; }
   
   .level-track { height: 40px; }
 }
