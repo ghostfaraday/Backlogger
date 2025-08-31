@@ -156,6 +156,10 @@ select, input, button {
 }
 /* Full-width helper */
 .full { width: 100%; }
+
+/* Spacing between Weekly Challenge control rows */
+.challenge-card .row { margin-top: 8px; }
+.challenge-card .row:first-of-type { margin-top: 0; }
 select:focus, input:focus { 
   outline: none; 
   border-color: var(--accent); 
