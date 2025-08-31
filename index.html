@@ -262,12 +262,89 @@
 
       <!-- RECORDS VIEW -->
       <section id="view-records" class="view">
-        <article class="card">
-          <header>
-            <h2>Records & Leaderboard</h2>
-          </header>
-          <ul class="records-list" id="recordsList"></ul>
-        </article>
+        <div class="grid">
+          <!-- Controls -->
+          <article class="card" style="grid-column: span 12;">
+            <header><h2>Records & Analytics</h2></header>
+            <div class="row">
+              <label style="flex:1">Range
+                <select id="recRange">
+                  <option value="all">All</option>
+                  <option value="4">Last 4 weeks</option>
+                  <option value="12">Last 12 weeks</option>
+                  <option value="26">Last 26 weeks</option>
+                </select>
+              </label>
+              <label style="flex:1">Strategy
+                <select id="recStrategy">
+                  <option value="all">All</option>
+                  <option>Breakout</option>
+                  <option>Pullback</option>
+                  <option>Trend</option>
+                  <option>News</option>
+                </select>
+              </label>
+            </div>
+          </article>
+
+          <!-- Totals summary chips -->
+          <article class="card" style="grid-column: span 12;">
+            <div class="chips">
+              <div class="chip"><span class="chip-label">Total Trades</span><strong id="recTotalTrades">0</strong></div>
+              <div class="chip green"><span class="chip-label">Wins</span><strong id="recWins">0</strong></div>
+              <div class="chip red"><span class="chip-label">Losses</span><strong id="recLosses">0</strong></div>
+              <div class="chip blue"><span class="chip-label">Win Rate</span><strong id="recWinRate">0%</strong></div>
+            </div>
+          </article>
+
+          <!-- Performance Overview: Balance & MPI -->
+          <article class="card" style="grid-column: span 6;">
+            <header><h2>Balance Growth</h2></header>
+            <div class="chart" id="chartBalance"></div>
+          </article>
+          <article class="card" style="grid-column: span 6;">
+            <header><h2>MPI Evolution</h2></header>
+            <div class="chart" id="chartMPI"></div>
+          </article>
+
+          <!-- Weekly Comparison -->
+          <article class="card" style="grid-column: span 7;">
+            <header><h2>Weekly Comparison</h2></header>
+            <div class="table-wrap">
+              <table class="table" id="weeklyCompare">
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    <th>P/L</th>
+                    <th>WinRate</th>
+                    <th>PF</th>
+                    <th>Avg R</th>
+                    <th>Trades</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+
+          <!-- Discipline snapshot -->
+          <article class="card" style="grid-column: span 5;">
+            <header><h2>Discipline Snapshot</h2></header>
+            <div id="discBars" class="bars"></div>
+          </article>
+
+          <!-- Milestone Timeline -->
+          <article class="card" style="grid-column: span 7;">
+            <header><h2>Milestone Timeline</h2></header>
+            <ul class="timeline" id="timeline"></ul>
+          </article>
+
+          <!-- Records Board (existing) -->
+          <article class="card" style="grid-column: span 5;">
+            <header><h2>Records Board</h2></header>
+            <ul class="records-list" id="recordsList"></ul>
+          </article>
+        </div>
       </section>
 
       <!-- LOG VIEW -->

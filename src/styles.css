@@ -156,6 +156,42 @@ body {
 .record span { color: var(--muted); font-size: 12px; }
 .record strong { display: block; margin-top: 6px; font-size: 18px; }
 
+/* ---- Records view additions ---- */
+.chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.chip { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+.chip .chip-label { color: var(--muted); font-size: 12px; }
+.chip strong { font-size: 18px; }
+.chip.green { background: rgba(45,212,191,0.1); border-color: rgba(45,212,191,0.3); }
+.chip.red { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.28); }
+.chip.blue { background: rgba(96,165,250,0.08); border-color: rgba(96,165,250,0.28); }
+
+.chart { height: 220px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); display: grid; place-items: center; color: var(--muted); font-size: 12px; overflow: hidden; }
+.chart svg { width: 100%; height: 100%; }
+
+.bars { display: grid; gap: 10px; }
+.bar { display: grid; grid-template-columns: 120px 1fr 46px; align-items: center; gap: 10px; }
+.bar .bar-label { color: var(--muted); font-size: 12px; }
+.bar .bar-track { height: 10px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; }
+.bar .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); width: 0%; transition: width 0.3s ease; }
+.bar .bar-val { text-align: right; font-weight: 700; font-size: 12px; }
+
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.timeline li { position: relative; padding-left: 20px; }
+.timeline li::before { content: ''; position: absolute; left: 6px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px rgba(0,214,255,0.4); }
+.timeline .when { color: var(--muted); font-size: 12px; }
+.timeline .what { font-weight: 600; }
+
+/* Responsive tweaks for Records */
+@media (max-width: 1024px) {
+  .chips { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .chips { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .chips { grid-template-columns: 1fr 1fr; }
+}
+
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .row.space-between { justify-content: space-between; }
 select, input, button { 

@@ -215,7 +215,8 @@ function renderReports() {
 }
 
 function renderRecords() {
-  const ul = $('#recordsList');
+  const ul = document.getElementById('recordsList');
+  if (!ul) return;
   ul.innerHTML = '';
   const items = [
     { k: 'Highest Balance', v: `$${fmt(state.account.highWater)}` },
@@ -229,7 +230,128 @@ function renderRecords() {
     li.innerHTML = `<strong>${k}</strong>: ${v}`;
     ul.appendChild(li);
   });
+
+  // Records analytics rendering
+  const rangeSel = document.getElementById('recRange');
+  const stratSel = document.getElementById('recStrategy');
+  const rangeVal = rangeSel?.value || 'all';
+  const stratVal = stratSel?.value || 'all';
+  const reports = (state.reports || []).filter(r => stratVal === 'all' || r.strategy === stratVal);
+  const scoped = rangeVal === 'all' ? reports : reports.slice(0, parseInt(rangeVal, 10));
+
+  // Totals
+  const trades = scoped.reduce((a, r) => a + (r.totalTrades || 0), 0);
+  const wins = scoped.reduce((a, r) => a + ((r.wins != null) ? r.wins : 0), 0);
+  const losses = scoped.reduce((a, r) => a + ((r.losses != null) ? r.losses : 0), 0);
+  const wr = (wins + losses) ? (wins / (wins + losses)) * 100 : 0;
+  const elT = document.getElementById('recTotalTrades'); if (elT) elT.textContent = fmt(trades);
+  const elW = document.getElementById('recWins'); if (elW) elW.textContent = fmt(wins);
+  const elL = document.getElementById('recLosses'); if (elL) elL.textContent = fmt(losses);
+  const elWR = document.getElementById('recWinRate'); if (elWR) elWR.textContent = `${fmt2(wr)}%`;
+
+  // Weekly compare table
+  const tbody = document.querySelector('#weeklyCompare tbody');
+  if (tbody) {
+    tbody.innerHTML = '';
+    scoped.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.weekRange || r.weekId}</td>
+        <td>${signFmt(r.weekPL || 0)}</td>
+        <td>${fmt2(r.winRate || 0)}%</td>
+        <td>${r.pf === Infinity ? '∞' : fmt2(r.pf || 0)}</td>
+        <td>${fmt2(r.avgRMultiple || 0)}</td>
+        <td>${fmt(r.totalTrades || 0)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Discipline bars (use average across scoped)
+  const discEl = document.getElementById('discBars');
+  if (discEl) {
+    discEl.innerHTML = '';
+    const avg = (key) => {
+      const vals = scoped.map(r => r.adherenceByCat?.[key] ?? null).filter(v => v != null);
+      if (!vals.length) return 0;
+      return vals.reduce((a, v) => a + v, 0) / vals.length;
+    };
+    const metrics = [
+      { key: 'strategy', label: 'Strategy' },
+      { key: 'tradeMgmt', label: 'Trade Mgmt' },
+      { key: 'riskMgmt', label: 'Risk Mgmt' },
+      { key: 'plan', label: 'Plan' },
+      { key: 'overall', label: 'Overall' },
+    ];
+    metrics.forEach(m => {
+      const val = avg(m.key);
+      const row = document.createElement('div');
+      row.className = 'bar';
+      row.innerHTML = `
+        <div class="bar-label">${m.label}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(val)}%"></div></div>
+        <div class="bar-val">${fmt2(val)}%</div>
+      `;
+      discEl.appendChild(row);
+    });
+  }
+
+  // Charts (placeholder simple text until charting lib is considered)
+  const balEl = document.getElementById('chartBalance');
+  if (balEl) {
+    balEl.innerHTML = '';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('x', '50'); txt.setAttribute('y', '50'); txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('fill', 'currentColor');
+    txt.textContent = 'Balance growth (last ' + (rangeVal==='all'?reports.length:scoped.length) + ' weeks)';
+    svg.appendChild(txt); balEl.appendChild(svg);
+  }
+  const mpiEl = document.getElementById('chartMPI');
+  if (mpiEl) {
+    mpiEl.innerHTML = '';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('x', '50'); txt.setAttribute('y', '50'); txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('fill', 'currentColor');
+    txt.textContent = 'MPI evolution (last ' + (rangeVal==='all'?reports.length:scoped.length) + ' weeks)';
+    svg.appendChild(txt); mpiEl.appendChild(svg);
+  }
+
+  // Timeline from badges and records events (simple derivation)
+  const tl = document.getElementById('timeline');
+  if (tl) {
+    tl.innerHTML = '';
+    const events = [];
+    // Best-week events
+    scoped.forEach(r => {
+      if (r.weekPL === state.account.bestWeek) {
+        events.push({ when: r.weekRange || r.weekId, what: `New Best Week: ${signFmt(r.weekPL)}` });
+      }
+    });
+    // High-water inferred (approx) and badge placeholders
+    if (state.account.highWater) {
+      events.push({ when: '—', what: `High Watermark: $${fmt(state.account.highWater)}` });
+    }
+    if (state.account.biggestProfit) {
+      events.push({ when: '—', what: `Record Win: $${fmt(state.account.biggestProfit)}` });
+    }
+    if (state.account.biggestLoss) {
+      events.push({ when: '—', what: `Record Loss: -$${fmt(Math.abs(state.account.biggestLoss))}` });
+    }
+    events.slice(0, 10).forEach(e => {
+      const li = document.createElement('li');
+      li.innerHTML = `<div class="when">${e.when}</div><div class="what">${e.what}</div>`;
+      tl.appendChild(li);
+    });
+  }
 }
+
+// Hook up Records filters
+['recRange','recStrategy'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', () => { renderRecords(); });
+});
 
 // ---------- Actions ----------
 function startChallenge() {
@@ -278,6 +400,8 @@ function endWeek() {
     pair: state.currentChallenge.pair,
     weekRange: formatWeekRange(state.currentChallenge.weekStart),
     weekPL,
+  wins,
+  losses,
     winRate: wr,
     pf,
     avgRMultiple,
@@ -287,6 +411,8 @@ function endWeek() {
     bestTrade: bestTrade.pl > -Infinity ? bestTrade : null,
     worstTrade: worstTrade.pl < Infinity ? worstTrade : null,
     totalTrades: allTrades.length,
+  endBalance: state.account.balance,
+  mpiAtEnd: calcMPI(state.stats),
     days: summarizeDays(state.currentChallenge.days),
   });
   
