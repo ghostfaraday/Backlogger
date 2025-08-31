@@ -157,6 +157,21 @@ select, input, button {
 /* Full-width helper */
 .full { width: 100%; }
 
+/* Date input hint wrapper */
+.input-wrap { position: relative; }
+.input-wrap .input-hint {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+.input-wrap:focus-within .input-hint { opacity: 0.35; }
+.input-wrap.has-value .input-hint { display: none; }
+
 /* Spacing between Weekly Challenge control rows */
 .challenge-card .row { margin-top: 8px; }
 .challenge-card .row:first-of-type { margin-top: 0; }

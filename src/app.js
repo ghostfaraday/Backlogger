@@ -555,3 +555,17 @@ $('#saveSettings').addEventListener('click', saveSettings);
 
 // Initialize UI with persisted state
 persistAndRender();
+
+// UX: date input hint visibility
+const weekStartInput = document.getElementById('weekStart');
+if (weekStartInput) {
+  const wrap = weekStartInput.closest('.input-wrap');
+  const syncHint = () => {
+    if (!wrap) return;
+    wrap.classList.toggle('has-value', !!weekStartInput.value);
+  };
+  weekStartInput.addEventListener('change', syncHint);
+  weekStartInput.addEventListener('input', syncHint);
+  weekStartInput.addEventListener('blur', syncHint);
+  syncHint();
+}
