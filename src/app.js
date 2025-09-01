@@ -570,11 +570,14 @@ function addTrade(formData) {
   if (ddPct < 5 && state.stats.wins + state.stats.losses >= 10) awardBadge('controlledDD5');
   if (ddPct < 2 && state.stats.wins + state.stats.losses >= 20) awardBadge('controlledDD2');
 
-  // Win streak tracking (simplified - would need proper streak counter)
-  if (pl > 0 && state.currentChallenge.trades.length >= 2) {
-    const lastTwo = state.currentChallenge.trades.slice(0, 2);
-    if (lastTwo.every(t => t.pl > 0)) awardBadge('winStreak3');
-  }
+  // Win streak tracking (simplified) — compute from all trades this week safely
+  try {
+    const flatTrades = state.currentChallenge.days.flatMap(d => d.trades).sort((a,b) => (b.time||0) - (a.time||0));
+    if (pl > 0 && flatTrades.length >= 2) {
+      const lastTwo = flatTrades.slice(0, 2);
+      if (lastTwo.every(t => t.pl > 0)) awardBadge('winStreak3');
+    }
+  } catch (_) { /* no-op */ }
 
   // Rule violations penalty
   const ruleFollowed = ruleStrategy && ruleTradeMgmt && ruleRiskMgmt && rulePlan;
