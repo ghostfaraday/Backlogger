@@ -592,7 +592,18 @@ function addTrade(formData) {
   }
 
   const trade = {
-    time: Date.now(),
+    // Stamp trade time using the simulated weekday date (use noon local time)
+    time: (() => {
+      try {
+        const day = state.currentChallenge?.days?.[state.currentChallenge.dayIndex];
+        if (day?.date) {
+          const d = new Date(day.date);
+          d.setHours(12,0,0,0);
+          return d.getTime();
+        }
+      } catch (_) { /* fall back below */ }
+      return Date.now();
+    })(),
     pair,
     entry, stop, exit,
     riskPct, grade, notes, ruleFollowed,
@@ -657,14 +668,18 @@ function updateDailySummary() {
   if (!el || !state.currentChallenge) return;
   const d = state.currentChallenge.days[state.currentChallenge.dayIndex];
   const dayPL = d.trades.reduce((a, t) => a + t.pl, 0);
-  el.textContent = `Today: ${d.trades.length} trades • P/L ${signFmt(dayPL)}`;
+  if (d.noTrade) {
+    el.textContent = 'Today: No Trade';
+  } else {
+    el.textContent = `Today: ${d.trades.length} trades • P/L ${signFmt(dayPL)}`;
+  }
 }
 function markNoTradeToday() {
   if (!state.currentChallenge) return;
   const d = state.currentChallenge.days[state.currentChallenge.dayIndex];
   d.noTrade = true;
-  updateDailySummary();
-  persistAndRender();
+  // Immediately move to the next day to keep the flow progressive
+  gotoNextDay();
 }
 function gotoNextDay() {
   if (!state.currentChallenge) return;
