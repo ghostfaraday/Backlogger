@@ -66,6 +66,35 @@ const fmt = (n) => n == null ? '—' : n.toLocaleString(undefined, { minimumFrac
 const fmt2 = (n) => n == null ? '—' : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const signFmt = (n) => (n >= 0 ? '+ $' + fmt(n) : '- $' + fmt(Math.abs(n)));
 
+// ---- Week/date helpers (used by Challenge) ----
+function getMondayISO(d) {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = (day === 0 ? -6 : 1) - day; // to Monday
+  date.setDate(date.getDate() + diff);
+  date.setHours(0,0,0,0);
+  return date;
+}
+
+function buildWeekDays(weekStart) {
+  const keys = ['mon','tue','wed','thu','fri'];
+  const days = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    days.push({ key: keys[i], date: d.toISOString().slice(0,10), trades: [], noTrade: false });
+  }
+  return days;
+}
+
+function formatWeekRange(weekStart) {
+  const s = new Date(weekStart);
+  const e = new Date(weekStart);
+  e.setDate(e.getDate() + 4);
+  const opts = { month: 'short', day: 'numeric' };
+  return `${s.toLocaleDateString(undefined, opts)} – ${e.toLocaleDateString(undefined, opts)}`;
+}
+
 function calcProfitFactor(sumProfit, sumLossAbs) {
   if (sumLossAbs <= 0) return sumProfit > 0 ? Infinity : 0;
   return sumProfit / sumLossAbs;
@@ -108,6 +137,32 @@ function awardBadge(key, label) {
     // Visual feedback could be added later (toast)
     renderBadges();
   }
+}
+
+// ---- Rules adherence from per-trade ratings (1-5 -> %) ----
+function calcRuleAdherence(trades) {
+  if (!Array.isArray(trades) || !trades.length) {
+    return { strategy: 0, tradeMgmt: 0, riskMgmt: 0, plan: 0, overall: 0 };
+  }
+  const pct = (v) => (Math.max(1, Math.min(5, v || 0)) / 5) * 100;
+  const avg = (arr) => arr.reduce((a,v)=>a+v,0) / arr.length;
+  const strategy = avg(trades.map(t => pct(t.ruleStrategyRating)));
+  const tradeMgmt = avg(trades.map(t => pct(t.ruleTradeMgmtRating)));
+  const riskMgmt = avg(trades.map(t => pct(t.ruleRiskMgmtRating)));
+  const plan = avg(trades.map(t => pct(t.rulePlanRating)));
+  const overall = (strategy + tradeMgmt + riskMgmt + plan) / 4;
+  return { strategy, tradeMgmt, riskMgmt, plan, overall };
+}
+
+function summarizeDays(days) {
+  return (days || []).map(d => {
+    const trades = d.trades || [];
+    const pl = trades.reduce((a,t)=>a+(t.pl||0), 0);
+    const wins = trades.filter(t=>t.pl>0).length;
+    const losses = trades.filter(t=>t.pl<0).length;
+    const wr = (wins+losses) ? (wins/(wins+losses))*100 : 0;
+    return { key: d.key, date: d.date, trades: trades.length, pl, wr, noTrade: d.noTrade };
+  });
 }
 
 // ---------- Routing ----------
@@ -198,6 +253,7 @@ function renderTrades() {
 
 function renderReports() {
   const ul = $('#reports');
+  if (!ul) return; // Guard in case reports list is not in DOM
   ul.innerHTML = '';
   state.reports.forEach(r => {
     const li = document.createElement('li');
@@ -750,3 +806,121 @@ function initRatings() {
   });
 }
 initRatings();
+
+// ---- Challenge/day helpers & actions (restore missing functions) ----
+function updateCurrentDayUI() {
+  const dayEl = document.getElementById('currentDay');
+  const endBtn = document.getElementById('endWeek');
+  const nextBtn = document.getElementById('nextDay');
+  if (!dayEl || !endBtn || !nextBtn) return;
+  if (!state.currentChallenge) {
+    dayEl.textContent = '—';
+    endBtn.style.display = 'none';
+    nextBtn.disabled = true;
+    return;
+  }
+  const idx = state.currentChallenge.dayIndex || 0;
+  const day = state.currentChallenge.days[idx];
+  dayEl.textContent = (day?.key || '—').toUpperCase();
+  // End week visible on Friday only
+  endBtn.style.display = idx >= 4 ? '' : 'none';
+  // Next enabled Mon–Thu only
+  nextBtn.disabled = idx >= 4 ? true : false;
+}
+
+function updateDailySummary() {
+  const el = document.getElementById('dailySummary');
+  if (!el) return;
+  if (!state.currentChallenge) { el.textContent = 'Today: —'; return; }
+  const idx = state.currentChallenge.dayIndex || 0;
+  const day = state.currentChallenge.days[idx];
+  const trades = day.trades || [];
+  const pl = trades.reduce((a,t)=>a+(t.pl||0), 0);
+  el.textContent = `Today: ${fmt(trades.length)} trades • P/L ${signFmt(pl)}`;
+}
+
+function markNoTradeToday() {
+  if (!state.currentChallenge) return;
+  const idx = state.currentChallenge.dayIndex || 0;
+  const day = state.currentChallenge.days[idx];
+  if (day) day.noTrade = true;
+  gotoNextDay();
+}
+
+function gotoNextDay() {
+  if (!state.currentChallenge) return;
+  state.currentChallenge.dayIndex = Math.min(4, (state.currentChallenge.dayIndex || 0) + 1);
+  updateCurrentDayUI();
+  updateDailySummary();
+}
+
+function addTrade(formData) {
+  if (!state.currentChallenge) return;
+  const entry = parseFloat(formData.get('entry'));
+  const stop = parseFloat(formData.get('stop'));
+  const exit = parseFloat(formData.get('exit'));
+  const riskPct = parseFloat(formData.get('riskPct')) || state.settings.baseRiskPct || 1;
+  const grade = String(formData.get('grade') || 'B');
+  const notes = String(formData.get('notes') || '');
+  const now = new Date();
+
+  const isLong = exit >= entry;
+  const riskPerUnit = isLong ? Math.max(entry - stop, 0.0000001) : Math.max(stop - entry, 0.0000001);
+  const rewardPerUnit = Math.abs(exit - entry);
+  const rMultiple = rewardPerUnit / riskPerUnit;
+
+  const riskDollars = state.account.balance * (riskPct / 100);
+  const pl = Math.sign(exit - entry) * rMultiple * riskDollars;
+
+  const idx = state.currentChallenge.dayIndex || 0;
+  const day = state.currentChallenge.days[idx];
+  day.trades = day.trades || [];
+  day.trades.push({
+    time: now.toISOString(),
+    pair: state.currentChallenge.pair,
+    entry, stop, exit,
+    riskPct,
+    rMultiple: isFinite(rMultiple) ? rMultiple : 0,
+    pl,
+    grade,
+    ruleSummary: '',
+    ruleStrategyRating: parseInt(formData.get('ruleStrategyRating') || '5', 10),
+    ruleTradeMgmtRating: parseInt(formData.get('ruleTradeMgmtRating') || '5', 10),
+    ruleRiskMgmtRating: parseInt(formData.get('ruleRiskMgmtRating') || '5', 10),
+    rulePlanRating: parseInt(formData.get('rulePlanRating') || '5', 10),
+    notes,
+  });
+
+  // Update account
+  state.account.dailyPL += pl;
+  state.account.weeklyPL += pl;
+  state.account.balance += pl;
+  state.account.equity = state.account.balance;
+  state.account.highWater = Math.max(state.account.highWater, state.account.balance);
+  state.account.biggestProfit = Math.max(state.account.biggestProfit, pl);
+  state.account.biggestLoss = Math.min(state.account.biggestLoss, pl);
+
+  // Update stats
+  if (pl > 0) state.stats.wins += 1; else if (pl < 0) state.stats.losses += 1;
+  if (pl > 0) state.stats.sumProfit += pl; else state.stats.sumLossAbs += Math.abs(pl);
+  const dd = state.account.highWater - state.account.balance;
+  state.stats.maxDrawdown = Math.max(state.stats.maxDrawdown, dd);
+  state.stats.mpi = calcMPI(state.stats);
+
+  updateDailySummary();
+}
+
+function saveSettings() {
+  const sb = parseFloat(document.getElementById('startingBalance')?.value || '10000');
+  const br = parseFloat(document.getElementById('baseRisk')?.value || '1');
+  const old = state.settings.startingBalance;
+  state.settings.startingBalance = isFinite(sb) ? sb : old;
+  state.settings.baseRiskPct = isFinite(br) ? br : state.settings.baseRiskPct;
+  // If untouched account, sync to new starting balance
+  if ((state.stats.wins + state.stats.losses) === 0 && state.reports.length === 0 && state.account.balance === old) {
+    state.account.balance = state.settings.startingBalance;
+    state.account.equity = state.settings.startingBalance;
+    state.account.highWater = Math.max(state.account.highWater, state.settings.startingBalance);
+  }
+  persistAndRender();
+}
