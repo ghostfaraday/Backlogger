@@ -181,9 +181,10 @@ function renderBadges() {
 function renderTrades() {
   const tbody = $('#tradeTable tbody');
   tbody.innerHTML = '';
-  const trades = state.currentChallenge ? state.currentChallenge.days.flatMap(d => d.trades) : [];
+  const trades = state.currentChallenge ? state.currentChallenge.days.flatMap(d => d.trades.map(t => ({...t, _dayKey: d.key, _noTrade: d.noTrade}))) : [];
   trades.forEach(t => {
     const tr = document.createElement('tr');
+    if (t._noTrade) tr.classList.add('no-trade-day');
     tr.innerHTML = `
       <td>${new Date(t.time).toLocaleDateString()}</td>
       <td>${t.pair}</td>
@@ -600,6 +601,7 @@ function addTrade(formData) {
     ruleSummary: `${ruleStrategy ? 'S' : 's'}${ruleTradeMgmt ? 'T' : 't'}${ruleRiskMgmt ? 'R' : 'r'}${rulePlan ? 'P' : 'p'}`,
     rMultiple: parseFloat(rMultiple.toFixed(2)),
     pl,
+    rText: `1:${(isFinite(rMultiple) && rMultiple>0) ? fmt2(rMultiple) : '0'}`,
   };
   // Insert into current day
   const day = state.currentChallenge.days[state.currentChallenge.dayIndex];
@@ -738,6 +740,14 @@ function persistAndRender() {
   renderRecords();
   updateCurrentDayUI();
   updateDailySummary();
+  // Enable/disable trade form if no active challenge
+  const form = document.getElementById('tradeForm');
+  const overlay = document.getElementById('noChallengeOverlay');
+  const disable = !state.currentChallenge;
+  if (form) {
+    Array.from(form.querySelectorAll('input, select, button[type="submit"]')).forEach(el => { el.disabled = disable; });
+    if (overlay) overlay.style.display = disable ? '' : 'none';
+  }
 }
 
 // ---------- Events ----------
@@ -792,8 +802,8 @@ function initRatings() {
       const hiddenInput = group.parentElement.querySelector(`input[name="${name}"]`);
       if (hiddenInput) hiddenInput.value = String(val);
     };
-    // default
-    const defaultVal = parseInt(group.parentElement.querySelector(`input[name="${name}"]`)?.value || '5', 10);
+  // default: empty until selected
+  const defaultVal = parseInt(group.parentElement.querySelector(`input[name="${name}"]`)?.value || '0', 10);
     sync(defaultVal);
     stars.forEach(star => {
       star.addEventListener('click', () => sync(parseInt(star.dataset.val, 10)));

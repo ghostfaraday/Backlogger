@@ -169,6 +169,7 @@
           <div class="logger">
             <h3>Log Trade</h3>
             <form id="tradeForm">
+              <div id="noChallengeOverlay" class="muted" style="display:none; margin-bottom:8px;">Start a challenge to log trades.</div>
               <div class="form-row">
                 <label>Entry <input type="number" step="0.0001" name="entry" required></label>
                 <label>Stop <input type="number" step="0.0001" name="stop" required></label>
@@ -197,7 +198,7 @@
                       <span class="star" data-val="4">★</span>
                       <span class="star" data-val="5">★</span>
                     </div>
-                    <input type="hidden" name="ruleStrategyRating" value="5" />
+                    <input type="hidden" name="ruleStrategyRating" value="0" />
                   </div>
                   <div class="rule-row">
                     <div class="rule-label">Trade management</div>
@@ -208,7 +209,7 @@
                       <span class="star" data-val="4">★</span>
                       <span class="star" data-val="5">★</span>
                     </div>
-                    <input type="hidden" name="ruleTradeMgmtRating" value="5" />
+                    <input type="hidden" name="ruleTradeMgmtRating" value="0" />
                   </div>
                   <div class="rule-row">
                     <div class="rule-label">Risk management</div>
@@ -219,7 +220,7 @@
                       <span class="star" data-val="4">★</span>
                       <span class="star" data-val="5">★</span>
                     </div>
-                    <input type="hidden" name="ruleRiskMgmtRating" value="5" />
+                    <input type="hidden" name="ruleRiskMgmtRating" value="0" />
                   </div>
                   <div class="rule-row">
                     <div class="rule-label">Trading plan</div>
@@ -230,7 +231,7 @@
                       <span class="star" data-val="4">★</span>
                       <span class="star" data-val="5">★</span>
                     </div>
-                    <input type="hidden" name="rulePlanRating" value="5" />
+                    <input type="hidden" name="rulePlanRating" value="0" />
                   </div>
                 </div>
               </div>
