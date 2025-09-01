@@ -199,14 +199,15 @@ function renderBadges() {
 function renderTrades() {
   const tbody = $('#tradeTable tbody');
   tbody.innerHTML = '';
-  const trades = state.currentChallenge ? state.currentChallenge.days.flatMap(d => d.trades.map(t => ({...t, _dayKey: d.key, _noTrade: d.noTrade}))) : [];
+  // Show only the current day's trades to keep the table in sync with the selected day/date
+  const trades = state.currentChallenge ? (state.currentChallenge.days[state.currentChallenge.dayIndex]?.trades || []) : [];
   trades.forEach(t => {
     const tr = document.createElement('tr');
-    if (t._noTrade) tr.classList.add('no-trade-day');
+    // No row grey-out needed here since this is scoped to the active day
     tr.innerHTML = `
       <td>${new Date(t.time).toLocaleDateString()}</td>
       <td>${t.pair}</td>
-      <td>${fmt2(t.rMultiple)}</td>
+      <td>${t.rText || fmt2(t.rMultiple)}</td>
       <td>${signFmt(t.pl)}</td>
       <td>${t.grade}</td>
       <td>${t.ruleSummary || ''}</td>
@@ -642,6 +643,7 @@ function addTrade(formData) {
   day.trades.unshift(trade);
   updateDailySummary();
   renderTrades();
+  persistAndRender();
 }
 
 // ---- Challenge day/week helpers ----
@@ -715,6 +717,7 @@ function gotoNextDay() {
   }
   updateCurrentDayUI();
   updateDailySummary();
+  renderTrades();
   persistAndRender();
 }
 function calcRuleAdherence(trades) {
