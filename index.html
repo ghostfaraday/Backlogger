@@ -23,7 +23,7 @@
       <nav class="nav">
         <button class="nav-btn is-active" data-view="dashboard">Dashboard</button>
         <button class="nav-btn" data-view="challenge">Challenge</button>
-        <button class="nav-btn" data-view="log">Trade Log</button>
+  <button class="nav-btn" data-view="log">Weekly Log</button>
         <button class="nav-btn" data-view="records">Records</button>
       </nav>
       <div class="user">
@@ -351,8 +351,16 @@
       <section id="view-log" class="view">
         <article class="card">
           <header>
-            <h2>Weekly Reports</h2>
+            <h2>Weekly Log</h2>
           </header>
+          <div class="chips" style="margin-bottom:10px;">
+            <div class="chip"><span class="chip-label">Weeks</span><strong id="logWeeks">0</strong></div>
+            <div class="chip"><span class="chip-label">Total Trades</span><strong id="logTotalTrades">0</strong></div>
+            <div class="chip blue"><span class="chip-label">Win Rate</span><strong id="logWR">0%</strong></div>
+            <div class="chip"><span class="chip-label">Net P/L</span><strong id="logNetPL">$0</strong></div>
+            <div class="chip"><span class="chip-label">Avg R:R</span><strong id="logAvgR">—</strong></div>
+            <div class="chip"><span class="chip-label">Avg Rules</span><strong id="logAvgRules">—%</strong></div>
+          </div>
           <ul class="reports" id="reports"></ul>
         </article>
       </section>

@@ -199,18 +199,70 @@ function renderTrades() {
 function renderReports() {
   const ul = $('#reports');
   ul.innerHTML = '';
+  // Top-level summary across all completed weeks
+  const weeksCount = state.reports.length;
+  const totalTrades = state.reports.reduce((a, r) => a + (r.totalTrades || 0), 0);
+  const wins = state.reports.reduce((a, r) => a + (r.wins || 0), 0);
+  const losses = state.reports.reduce((a, r) => a + (r.losses || 0), 0);
+  const netPL = state.reports.reduce((a, r) => a + (r.weekPL || 0), 0);
+  const wr = (wins + losses) ? (wins / (wins + losses)) * 100 : 0;
+  const avgR = state.reports.length ? (state.reports.reduce((a, r) => a + (r.avgRMultiple || 0), 0) / state.reports.length) : 0;
+  const avgRules = state.reports.length ? (state.reports.reduce((a, r) => a + (r.ruleAdherence || 0), 0) / state.reports.length) : 0;
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setText('logWeeks', fmt(weeksCount));
+  setText('logTotalTrades', fmt(totalTrades));
+  setText('logWR', `${fmt2(wr)}%`);
+  setText('logNetPL', signFmt(netPL));
+  setText('logAvgR', fmt2(avgR));
+  setText('logAvgRules', `${fmt2(avgRules)}%`);
+
   state.reports.forEach(r => {
     const li = document.createElement('li');
     li.className = 'report-item';
+    const notesCount = Array.isArray(r.trades) ? r.trades.filter(t => (t.notes||'').trim().length).length : 0;
+    const avgR = r.avgRMultiple != null ? fmt2(r.avgRMultiple) : '—';
+    const pfTxt = r.pf === Infinity ? '∞' : fmt2(r.pf);
+    const grades = r.gradeDistribution ? ` • Grades: A${r.gradeDistribution.A} B${r.gradeDistribution.B} C${r.gradeDistribution.C}` : '';
+    const recordTag = (r.weekPL != null && r.weekPL === state.account.bestWeek && r.weekPL > 0) ? '<span class="pill small green" style="margin-left:6px;">New Record</span>' : '';
+    // Build details section (hidden by default)
+    const daysHtml = Array.isArray(r.days) ? r.days.map(d => `
+      <li><strong>${(d.key||'').slice(0,3).toUpperCase()}</strong> — ${signFmt(d.pl||0)} • Trades: ${fmt(d.trades||0)} • WR: ${fmt2(d.wr||0)}% ${d.noTrade? '• No Trade':''}</li>
+    `).join('') : '';
+    const bestHtml = r.bestTrade ? `${new Date(r.bestTrade.time).toLocaleDateString()} • ${r.bestTrade.pair} • R ${fmt2(r.bestTrade.rMultiple)} • ${signFmt(r.bestTrade.pl)}` : '—';
+    const worstHtml = r.worstTrade ? `${new Date(r.worstTrade.time).toLocaleDateString()} • ${r.worstTrade.pair} • R ${fmt2(r.worstTrade.rMultiple)} • ${signFmt(r.worstTrade.pl)}` : '—';
+    const noteItems = Array.isArray(r.trades) ? r.trades.filter(t => (t.notes||'').trim()).slice(0,3).map(t => `<li>${new Date(t.time).toLocaleDateString()} — ${t.pair}: ${t.notes}</li>`).join('') : '';
+    const extraId = `rep-extra-${r.weekId}-${Math.random().toString(36).slice(2,7)}`;
     li.innerHTML = `
-      <div><strong>Week ${r.weekId}</strong> — ${r.strategy} ${r.pair}</div>
-      <div>PL: ${signFmt(r.weekPL)} • WinRate: ${fmt2(r.winRate)}% • PF: ${r.pf === Infinity ? '∞' : fmt2(r.pf)}</div>
+      <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap;">
+        <div><strong>Week ${r.weekId}</strong> — ${r.strategy} ${r.pair} ${recordTag}</div>
+        <button class="secondary small" data-toggle="${extraId}">Details</button>
+      </div>
+      <div>PL: ${signFmt(r.weekPL)} • WinRate: ${fmt2(r.winRate)}% • PF: ${pfTxt} • Avg R:R: ${avgR}</div>
       <div class="report-details">
-        Trades: ${r.totalTrades || 0} • Avg R: ${fmt2(r.avgRMultiple || 0)} • Rules: ${fmt2(r.ruleAdherence || 0)}%
-        ${r.gradeDistribution ? ` • Grades: A${r.gradeDistribution.A} B${r.gradeDistribution.B} C${r.gradeDistribution.C}` : ''}
+        Trades: ${r.totalTrades || 0} • Notes: ${fmt(notesCount)} • Rules: ${fmt2(r.ruleAdherence || 0)}%
+        ${grades}
+      </div>
+      <div id="${extraId}" class="report-extra" style="display:none; margin-top:8px;">
+        <div class="muted" style="margin-bottom:6px;">Day-by-day</div>
+        <ul class="muted" style="margin:0 0 8px 16px;">${daysHtml || '<li>—</li>'}</ul>
+        <div class="muted" style="margin-bottom:4px;">Best Trade</div>
+        <div style="margin-bottom:8px;">${bestHtml}</div>
+        <div class="muted" style="margin-bottom:4px;">Worst Trade</div>
+        <div style="margin-bottom:8px;">${worstHtml}</div>
+        <div class="muted" style="margin-bottom:4px;">Notes (preview)</div>
+        <ul class="muted" style="margin:0 0 0 16px;">${noteItems || '<li>—</li>'}</ul>
       </div>
     `;
     ul.appendChild(li);
+
+    // Wire toggle for details
+    const btn = li.querySelector('[data-toggle]');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        const target = li.querySelector('#' + btn.getAttribute('data-toggle'));
+        if (target) target.style.display = target.style.display === 'none' ? '' : 'none';
+      });
+    }
   });
 }
 
@@ -414,6 +466,15 @@ function endWeek() {
   endBalance: state.account.balance,
   mpiAtEnd: calcMPI(state.stats),
     days: summarizeDays(state.currentChallenge.days),
+    trades: allTrades.map(t => ({
+      time: t.time,
+      pair: t.pair,
+      rMultiple: t.rMultiple,
+      pl: t.pl,
+      grade: t.grade,
+      ruleSummary: t.ruleSummary,
+      notes: t.notes || ''
+    })),
   });
   
   // Reset weekly tracking
