@@ -66,6 +66,24 @@ const fmt = (n) => n == null ? '—' : n.toLocaleString(undefined, { minimumFrac
 const fmt2 = (n) => n == null ? '—' : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const signFmt = (n) => (n >= 0 ? '+ $' + fmt(n) : '- $' + fmt(Math.abs(n)));
 
+// Date helpers: keep dates in local time to avoid UTC shifting issues
+function parseLocalDateFromISO(iso) {
+  if (!iso || typeof iso !== 'string') return null;
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+function toISODateLocal(d) {
+  if (!(d instanceof Date)) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function formatISOForDisplay(iso) {
+  const d = parseLocalDateFromISO(iso);
+  return d ? d.toLocaleDateString() : iso || '';
+}
+
 function calcProfitFactor(sumProfit, sumLossAbs) {
   if (sumLossAbs <= 0) return sumProfit > 0 ? Infinity : 0;
   return sumProfit / sumLossAbs;
@@ -412,9 +430,14 @@ function startChallenge() {
   const pair = $('#pairSelect').value;
   const weekId = Math.floor(Math.random() * 9000) + 1000;
   const weekStartInput = $('#weekStart').value;
-  const weekStart = getMondayISO(weekStartInput ? new Date(weekStartInput) : new Date());
+  const selectedDate = weekStartInput ? parseLocalDateFromISO(weekStartInput) : new Date();
+  const weekStart = getMondayISO(selectedDate);
   const days = buildWeekDays(weekStart);
-  state.currentChallenge = { strategy, pair, weekId, weekStart, days, dayIndex: 0 };
+  // If the selected date is within Mon–Fri, start on that day; otherwise default to Monday
+  const selectedISO = toISODateLocal(selectedDate);
+  let dayIndex = days.findIndex(d => d.date === selectedISO);
+  if (dayIndex < 0 || dayIndex > 4) dayIndex = 0;
+  state.currentChallenge = { strategy, pair, weekId, weekStart, days, dayIndex };
   $('#challengeInfo').textContent = `Week ${weekId} • ${strategy} on ${pair} • ${formatWeekRange(weekStart)}`;
   $('#markNoTrade').disabled = false;
   $('#nextDay').disabled = false;
@@ -624,27 +647,25 @@ function addTrade(formData) {
 // ---- Challenge day/week helpers ----
 const DAY_KEYS = ['monday','tuesday','wednesday','thursday','friday'];
 function getMondayISO(date) {
-  const d = new Date(date);
+  const src = (date instanceof Date) ? new Date(date.getFullYear(), date.getMonth(), date.getDate()) : parseLocalDateFromISO(String(date));
+  const d = src || new Date();
   const day = d.getDay(); // 0..6, where 1 is Monday
   const diff = (day === 0 ? -6 : 1 - day); // move to Monday
-  d.setDate(d.getDate() + diff);
-  d.setHours(0,0,0,0);
-  return d.toISOString().slice(0,10);
+  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diff);
+  return toISODateLocal(monday);
 }
 function buildWeekDays(weekStartISO) {
-  const base = new Date(weekStartISO);
+  const base = parseLocalDateFromISO(weekStartISO) || new Date();
   const arr = [];
   for (let i = 0; i < 5; i++) {
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
-    arr.push({ key: DAY_KEYS[i], date: d.toISOString().slice(0,10), trades: [], noTrade: false });
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+    arr.push({ key: DAY_KEYS[i], date: toISODateLocal(d), trades: [], noTrade: false });
   }
   return arr;
 }
 function formatWeekRange(weekStartISO) {
-  const start = new Date(weekStartISO);
-  const end = new Date(weekStartISO);
-  end.setDate(end.getDate() + 4);
+  const start = parseLocalDateFromISO(weekStartISO) || new Date();
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 4);
   return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
 }
 function updateCurrentDayUI() {
@@ -654,7 +675,9 @@ function updateCurrentDayUI() {
   if (!state.currentChallenge || !el) return;
   const idx = state.currentChallenge.dayIndex;
   const label = DAY_KEYS[idx]?.charAt(0).toUpperCase() + DAY_KEYS[idx]?.slice(1) || '—';
-  el.textContent = label;
+  const day = state.currentChallenge.days[idx];
+  const dateTxt = day?.date ? formatISOForDisplay(day.date) : '';
+  el.textContent = dateTxt ? `${label} • ${dateTxt}` : label;
   // Show End Week button only on Friday
   const isFriday = idx === 4;
   endBtn.style.display = isFriday ? '' : 'none';
