@@ -204,10 +204,11 @@ function renderTrades() {
   trades.forEach(t => {
     const tr = document.createElement('tr');
     // No row grey-out needed here since this is scoped to the active day
+    const tooltip = `${t.rSplit || ''}\nRealized R: ${fmt2(t.rMultiple)}\nP/L: ${signFmt(t.pl)}`;
     tr.innerHTML = `
       <td>${new Date(t.time).toLocaleDateString()}</td>
       <td>${t.pair}</td>
-      <td title="${t.rSplit || ''}">${t.rText || fmt2(t.rMultiple)}</td>
+      <td title="${tooltip.replace(/"/g,'&quot;')}">${t.rText || fmt2(t.rMultiple)}</td>
       <td>${signFmt(t.pl)}</td>
       <td>${t.grade}</td>
       <td>${t.ruleSummary || ''}</td>
@@ -528,6 +529,7 @@ function addTrade(formData) {
   const stop = parseFloat(formData.get('stop')); 
   const exit1 = parseFloat(formData.get('exit1'));
   const exit2 = parseFloat(formData.get('exit2'));
+  const runnerBE = formData.get('runnerBE') === '1';
   const riskPct = parseFloat(formData.get('riskPct') || state.settings.baseRiskPct);
   const grade = formData.get('grade');
   const notes = formData.get('notes') || '';
@@ -562,8 +564,11 @@ function addTrade(formData) {
       rMultiple2 = (entry - exit2) / riskPerUnit;
     }
   }
-  // Assume 50% size off at TP1, 50% runner to TP2
-  const rMultiple = (rMultiple1 + rMultiple2) / 2;
+  // Assume fixed scale fraction f (half off at TP1)
+  const f = 0.5;
+  // If runner stopped BE, second leg R = 0 regardless of exit2 input
+  const effectiveR2 = runnerBE ? 0 : rMultiple2;
+  const rMultiple = (f * rMultiple1) + ((1 - f) * effectiveR2);
   const pl = Math.round(rMultiple * riskDollars);
 
   // Update stats and account
@@ -646,8 +651,11 @@ function addTrade(formData) {
   rMultiple1: parseFloat(rMultiple1.toFixed(2)),
   rMultiple2: parseFloat(rMultiple2.toFixed(2)),
     pl,
-  rText: `1:${(isFinite(rMultiple) && rMultiple>0) ? fmt2(rMultiple) : '0'}`,
-  rSplit: `TP1 ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} / TP2 ${isFinite(rMultiple2)?fmt2(rMultiple2):'0'}`,
+    rText: `1:${(isFinite(rMultiple) && Math.abs(rMultiple)>0) ? fmt2(rMultiple) : '0'}`,
+    rSplit: runnerBE 
+      ? `TP1 ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} (${(f*100).toFixed(0)}%) / Runner BE ( ${(1-f)*100}% )`
+      : `TP1 ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} (${(f*100).toFixed(0)}%) / TP2 ${isFinite(rMultiple2)?fmt2(rMultiple2):'0'} (${((1-f)*100).toFixed(0)}%)`,
+    runnerBE,
   };
   // Insert into current day
   const day = state.currentChallenge.days[state.currentChallenge.dayIndex];
