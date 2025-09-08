@@ -204,7 +204,8 @@ function renderTrades() {
   trades.forEach(t => {
     const tr = document.createElement('tr');
     // No row grey-out needed here since this is scoped to the active day
-    const tooltip = `${t.rSplit || ''}\nRealized R: ${fmt2(t.rMultiple)}\nP/L: ${signFmt(t.pl)}`;
+  const attained = (t.attainedR != null) ? `Attained R: ${fmt2(t.attainedR)}` : '';
+  const tooltip = `${t.rSplit || ''}\nRealized R: ${fmt2(t.rMultiple)}${attained? '\n'+attained:''}\nP/L: ${signFmt(t.pl)}`;
     tr.innerHTML = `
       <td>${new Date(t.time).toLocaleDateString()}</td>
       <td>${t.pair}</td>
@@ -529,7 +530,6 @@ function addTrade(formData) {
   const stop = parseFloat(formData.get('stop')); 
   const exit1 = parseFloat(formData.get('exit1'));
   const exit2 = parseFloat(formData.get('exit2'));
-  const runnerBE = formData.get('runnerBE') === '1';
   const riskPct = parseFloat(formData.get('riskPct') || state.settings.baseRiskPct);
   const grade = formData.get('grade');
   const notes = formData.get('notes') || '';
@@ -564,12 +564,12 @@ function addTrade(formData) {
       rMultiple2 = (entry - exit2) / riskPerUnit;
     }
   }
-  // Assume fixed scale fraction f (half off at TP1)
+  // Fixed fraction f = 0.5 (first scale-out) for realized R calculation
   const f = 0.5;
-  // If runner stopped BE, second leg R = 0 regardless of exit2 input
-  const effectiveR2 = runnerBE ? 0 : rMultiple2;
-  const rMultiple = (f * rMultiple1) + ((1 - f) * effectiveR2);
-  const pl = Math.round(rMultiple * riskDollars);
+  const realizedR = (f * rMultiple1) + ((1 - f) * rMultiple2);
+  // Attained R (max reached across legs) = max(rMultiple1, rMultiple2)
+  const attainedR = Math.max(rMultiple1, rMultiple2);
+  const pl = Math.round(realizedR * riskDollars);
 
   // Update stats and account
   state.account.balance += pl;
@@ -647,15 +647,13 @@ function addTrade(formData) {
   ruleStrategy, ruleTradeMgmt, ruleRiskMgmt, rulePlan,
   ruleStrategyRating, ruleTradeMgmtRating, ruleRiskMgmtRating, rulePlanRating,
     ruleSummary: `${ruleStrategy ? 'S' : 's'}${ruleTradeMgmt ? 'T' : 't'}${ruleRiskMgmt ? 'R' : 'r'}${rulePlan ? 'P' : 'p'}`,
-  rMultiple: parseFloat(rMultiple.toFixed(2)),
+  rMultiple: parseFloat(realizedR.toFixed(2)),
+  attainedR: parseFloat(attainedR.toFixed(2)),
   rMultiple1: parseFloat(rMultiple1.toFixed(2)),
   rMultiple2: parseFloat(rMultiple2.toFixed(2)),
     pl,
-    rText: `1:${(isFinite(rMultiple) && Math.abs(rMultiple)>0) ? fmt2(rMultiple) : '0'}`,
-    rSplit: runnerBE 
-      ? `TP1 ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} (${(f*100).toFixed(0)}%) / Runner BE ( ${(1-f)*100}% )`
-      : `TP1 ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} (${(f*100).toFixed(0)}%) / TP2 ${isFinite(rMultiple2)?fmt2(rMultiple2):'0'} (${((1-f)*100).toFixed(0)}%)`,
-    runnerBE,
+  rText: `1:${(isFinite(realizedR) && Math.abs(realizedR)>0) ? fmt2(realizedR) : '0'}`,
+  rSplit: `TP1 ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} (${(f*100).toFixed(0)}%) / TP2 ${isFinite(rMultiple2)?fmt2(rMultiple2):'0'} (${((1-f)*100).toFixed(0)}%) • Attained ${isFinite(attainedR)?fmt2(attainedR):'0'}R`,
   };
   // Insert into current day
   const day = state.currentChallenge.days[state.currentChallenge.dayIndex];
