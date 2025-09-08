@@ -8,6 +8,7 @@ const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 const defaultSettings = {
   startingBalance: 10000,
   baseRiskPct: 1,
+  tickSize: 0, // 0 means disabled; when >0 compute tick-based diagnostics
 };
 
 const levelThresholds = [
@@ -595,6 +596,26 @@ function addTrade(formData) {
     if (isFinite(peakR)) return Math.max(attainedBase, peakR);
     return attainedBase;
   })();
+  // Optional tick-based metrics
+  const tickSize = state.settings.tickSize && state.settings.tickSize > 0 ? state.settings.tickSize : null;
+  let riskTicks = null, rewardTicks1 = null, rewardTicks2 = null, peakTicks = null, tickR1 = null, tickR2 = null, tickRealizedR = null;
+  if (tickSize) {
+    riskTicks = riskPerUnit / tickSize;
+    if (isLong) {
+      rewardTicks1 = (exit1 - entry) / tickSize;
+      if (hasSecond) rewardTicks2 = (exit2 - entry) / tickSize;
+      if (isFinite(peakPrice)) peakTicks = (peakPrice - entry) / tickSize;
+    } else {
+      rewardTicks1 = (entry - exit1) / tickSize;
+      if (hasSecond) rewardTicks2 = (entry - exit2) / tickSize;
+      if (isFinite(peakPrice)) peakTicks = (entry - peakPrice) / tickSize;
+    }
+    if (riskTicks && riskTicks !== 0) {
+      tickR1 = rewardTicks1 / riskTicks;
+      tickR2 = hasSecond && rewardTicks2 != null ? rewardTicks2 / riskTicks : null;
+      tickRealizedR = hasSecond && tickR2 != null ? (f * tickR1 + (1 - f) * tickR2) : tickR1;
+    }
+  }
   // Dollar legs (ensure rounding consistency)
   let leg1PL = Math.round(rMultiple1 * riskDollars * f);
   let leg2PL = hasSecond ? Math.round(rMultiple2 * riskDollars * (1 - f)) : 0;
@@ -676,7 +697,7 @@ function addTrade(formData) {
   ruleStrategy, ruleTradeMgmt, ruleRiskMgmt, rulePlan,
   ruleStrategyRating, ruleTradeMgmtRating, ruleRiskMgmtRating, rulePlanRating,
     ruleSummary: `${ruleStrategy ? 'S' : 's'}${ruleTradeMgmt ? 'T' : 't'}${ruleRiskMgmt ? 'R' : 'r'}${rulePlan ? 'P' : 'p'}`,
-  rMultiple: parseFloat(realizedR.toFixed(2)), // realized
+  rMultiple: parseFloat(realizedR.toFixed(2)), // realized (price-based)
   attainedR: parseFloat(attainedR.toFixed(2)),
   rMultiple1: parseFloat(rMultiple1.toFixed(2)),
   rMultiple2: hasSecond ? parseFloat(rMultiple2.toFixed(2)) : null,
@@ -684,17 +705,27 @@ function addTrade(formData) {
   scalePct,
   leg1PL,
   leg2PL,
+  // Tick diagnostics
+  tickSize: tickSize || null,
+  riskTicks: riskTicks != null ? parseFloat(riskTicks.toFixed(2)) : null,
+  rewardTicks1: rewardTicks1 != null ? parseFloat(rewardTicks1.toFixed(2)) : null,
+  rewardTicks2: rewardTicks2 != null ? parseFloat(rewardTicks2.toFixed(2)) : null,
+  peakTicks: peakTicks != null ? parseFloat(peakTicks.toFixed(2)) : null,
+  tickR1: tickR1 != null ? parseFloat(tickR1.toFixed(3)) : null,
+  tickR2: tickR2 != null ? parseFloat(tickR2?.toFixed(3)) : null,
+  tickRealizedR: tickRealizedR != null ? parseFloat(tickRealizedR.toFixed(3)) : null,
     pl,
   rText: `1:${(isFinite(realizedR) && Math.abs(realizedR)>0) ? fmt2(realizedR) : '0'}`,
   rSplit: (() => {
     const peakNote = (isFinite(peakR) && peakR > (hasSecond ? Math.max(rMultiple1, rMultiple2) : rMultiple1)) ? ` • Peak ${fmt2(peakR)}R` : '';
+    const tickDebug = (tickSize && riskTicks) ? ` • Ticks R ${tickRealizedR!=null?tickRealizedR:'—'} (risk ${riskTicks?.toFixed(2)} / reward ${rewardTicks1?.toFixed(2)}${hasSecond && rewardTicks2!=null?'/'+rewardTicks2.toFixed(2):''})` : '';
     if (hasSecond) {
       return `TP1 ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} (${(f*100).toFixed(0)}%) $${fmt(Math.abs(leg1PL))}` +
-             ` / TP2 ${isFinite(rMultiple2)?fmt2(rMultiple2):'0'} (${((1-f)*100).toFixed(0)}%) $${fmt(Math.abs(leg2PL))}` +
-             `${peakNote} • Attained ${isFinite(attainedR)?fmt2(attainedR):'0'}R`;
+        ` / TP2 ${isFinite(rMultiple2)?fmt2(rMultiple2):'0'} (${((1-f)*100).toFixed(0)}%) $${fmt(Math.abs(leg2PL))}` +
+        `${peakNote} • Attained ${isFinite(attainedR)?fmt2(attainedR):'0'}R${tickDebug}`;
     }
     return `TP ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} (100%) $${fmt(Math.abs(leg1PL))}` +
-           `${peakNote} • Attained ${isFinite(attainedR)?fmt2(attainedR):'0'}R`;
+      `${peakNote} • Attained ${isFinite(attainedR)?fmt2(attainedR):'0'}R${tickDebug}`;
   })(),
   };
   // Insert into current day
@@ -803,8 +834,10 @@ function summarizeDays(days) {
 function saveSettings() {
   const startingBalance = parseFloat($('#startingBalance').value) || defaultSettings.startingBalance;
   const baseRiskPct = parseFloat($('#baseRisk').value) || defaultSettings.baseRiskPct;
+  const tickSizeVal = parseFloat($('#tickSize').value) || 0;
   state.settings.startingBalance = startingBalance;
   state.settings.baseRiskPct = baseRiskPct;
+  state.settings.tickSize = tickSizeVal > 0 ? tickSizeVal : 0;
   
   // Only reset if balance changed significantly and user has no active challenge
   if (Math.abs(startingBalance - state.account.balance) > 1000 && !state.currentChallenge) {
@@ -848,6 +881,9 @@ function persistAndRender() {
     Array.from(form.querySelectorAll('input, select, button[type="submit"]')).forEach(el => { el.disabled = disable; });
     if (overlay) overlay.style.display = disable ? '' : 'none';
   }
+  // Sync settings inputs if present
+  const tickSizeInput = document.getElementById('tickSize');
+  if (tickSizeInput) tickSizeInput.value = state.settings.tickSize || 0;
 }
 
 // ---------- Events ----------
