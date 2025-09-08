@@ -852,3 +852,39 @@ function initRatings() {
   });
 }
 initRatings();
+
+// Desktop keyboard shortcuts (non-destructive, ignored in inputs when appropriate)
+document.addEventListener('keydown', (e) => {
+  const activeTag = (document.activeElement && document.activeElement.tagName) || '';
+  const isTyping = ['INPUT','TEXTAREA','SELECT'].includes(activeTag);
+  // View switching: Alt+1..4
+  if (e.altKey && !e.shiftKey && !e.ctrlKey) {
+    if (e.key === '1') { switchView('dashboard'); }
+    if (e.key === '2') { switchView('challenge'); }
+    if (e.key === '3') { switchView('log'); }
+    if (e.key === '4') { switchView('records'); }
+  }
+  // Start challenge: Ctrl+Shift+S
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+    const btn = document.getElementById('startChallenge');
+    if (btn && !btn.disabled) { btn.click(); e.preventDefault(); }
+  }
+  // Add trade: Ctrl+Enter (only if challenge view active)
+  if (e.ctrlKey && e.key === 'Enter') {
+    const form = document.getElementById('tradeForm');
+    if (form && !isTyping && !form.querySelector('button[type="submit"]').disabled) {
+      form.requestSubmit();
+      e.preventDefault();
+    }
+  }
+  // Next day: Ctrl+ArrowRight
+  if (e.ctrlKey && e.key === 'ArrowRight') {
+    const btn = document.getElementById('nextDay');
+    if (btn && !btn.disabled) { btn.click(); e.preventDefault(); }
+  }
+  // Mark No Trade: Ctrl+N
+  if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'n') {
+    const btn = document.getElementById('markNoTrade');
+    if (btn && !btn.disabled) { btn.click(); e.preventDefault(); }
+  }
+});

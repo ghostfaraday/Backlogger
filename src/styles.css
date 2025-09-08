@@ -93,14 +93,14 @@ body {
 .rank-title { font-family: Orbitron, Inter, sans-serif; letter-spacing: 0.5px; }
 .balance { font-weight: 600; }
 
-.container { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
+.container { max-width: 1600px; margin: 20px auto; padding: 0 28px; }
 .view { display: none; }
 .view.is-visible { display: block; }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 16px;
+  gap: 14px; /* Slightly denser for desktop */
 }
 .card {
   grid-column: span 6;
@@ -108,7 +108,7 @@ body {
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 16px;
+  padding: 14px; /* Tighter padding for desktop use */
 }
 .card header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
 .card h2 { font-family: Orbitron, Inter, sans-serif; font-weight: 700; letter-spacing: 0.5px; font-size: 16px; margin: 0; }
@@ -157,7 +157,7 @@ body {
 .record strong { display: block; margin-top: 6px; font-size: 18px; }
 
 /* ---- Records view additions ---- */
-.chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.chips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
 .chip { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
 .chip .chip-label { color: var(--muted); font-size: 12px; }
 .chip strong { font-size: 18px; }
@@ -256,7 +256,7 @@ button.secondary:hover {
 }
 
 .logger { margin-top: 12px; }
-.form-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+.form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
 label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
 input[type="checkbox"] { height: auto; }
 
@@ -341,6 +341,11 @@ input[type="checkbox"] { height: auto; }
   .app-header { padding: 12px 16px; }
 }
 
+/* Desktop-first: keep wide layout, only collapse much later */
+@media (max-width: 1280px) {
+  .chips { grid-template-columns: repeat(4, 1fr); }
+  .form-row { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width: 1024px) {
   .rank-card, .achievements-card { grid-column: span 12; }
   .balance-card, .challenge-card { grid-column: span 6; }
