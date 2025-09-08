@@ -207,7 +207,7 @@ function renderTrades() {
     tr.innerHTML = `
       <td>${new Date(t.time).toLocaleDateString()}</td>
       <td>${t.pair}</td>
-      <td>${t.rText || fmt2(t.rMultiple)}</td>
+      <td title="${t.rSplit || ''}">${t.rText || fmt2(t.rMultiple)}</td>
       <td>${signFmt(t.pl)}</td>
       <td>${t.grade}</td>
       <td>${t.ruleSummary || ''}</td>
@@ -242,7 +242,8 @@ function renderReports() {
     const notesCount = Array.isArray(r.trades) ? r.trades.filter(t => (t.notes||'').trim().length).length : 0;
     const avgR = r.avgRMultiple != null ? fmt2(r.avgRMultiple) : '—';
     const pfTxt = r.pf === Infinity ? '∞' : fmt2(r.pf);
-    const grades = r.gradeDistribution ? ` • Grades: A${r.gradeDistribution.A} B${r.gradeDistribution.B} C${r.gradeDistribution.C}` : '';
+  const gd = r.gradeDistribution;
+  const grades = gd ? ` • Grades: A+${gd['A+']||0} B${gd['B']||0} C${gd['C']||0} C+${gd['C+']||0} D-${gd['D-']||0}` : '';
     const recordTag = (r.weekPL != null && r.weekPL === state.account.bestWeek && r.weekPL > 0) ? '<span class="pill small green" style="margin-left:6px;">New Record</span>' : '';
     // Build details section (hidden by default)
     const daysHtml = Array.isArray(r.days) ? r.days.map(d => `
@@ -462,9 +463,11 @@ function endWeek() {
   // Calculate additional weekly metrics
   const avgRMultiple = allTrades.length ? allTrades.reduce((a, t) => a + t.rMultiple, 0) / allTrades.length : 0;
   const gradeDistribution = {
-    A: allTrades.filter(t => t.grade === 'A').length,
-    B: allTrades.filter(t => t.grade === 'B').length,
-    C: allTrades.filter(t => t.grade === 'C').length,
+    'A+': allTrades.filter(t => t.grade === 'A+').length,
+    'B': allTrades.filter(t => t.grade === 'B').length,
+    'C': allTrades.filter(t => t.grade === 'C').length,
+    'C+': allTrades.filter(t => t.grade === 'C+').length,
+    'D-': allTrades.filter(t => t.grade === 'D-').length,
   };
   const adherenceByCat = calcRuleAdherence(allTrades);
   const ruleAdherence = adherenceByCat.overall;
@@ -523,7 +526,8 @@ function addTrade(formData) {
 
   const entry = parseFloat(formData.get('entry')); 
   const stop = parseFloat(formData.get('stop')); 
-  const exit = parseFloat(formData.get('exit')); 
+  const exit1 = parseFloat(formData.get('exit1'));
+  const exit2 = parseFloat(formData.get('exit2'));
   const riskPct = parseFloat(formData.get('riskPct') || state.settings.baseRiskPct);
   const grade = formData.get('grade');
   const notes = formData.get('notes') || '';
@@ -539,7 +543,7 @@ function addTrade(formData) {
   const pair = state.currentChallenge.pair; // Use challenge pair, not selector
 
   // Validation
-  if (isNaN(entry) || isNaN(stop) || isNaN(exit) || isNaN(riskPct)) {
+  if (isNaN(entry) || isNaN(stop) || isNaN(exit1) || isNaN(exit2) || isNaN(riskPct)) {
     alert('Please enter valid numbers for all price fields');
     return;
   }
@@ -548,14 +552,18 @@ function addTrade(formData) {
   // Fixed R multiple calculation: properly handle long/short direction
   const isLong = stop < entry; // If stop below entry, it's a long trade
   const riskPerUnit = Math.abs(entry - stop);
-  let rMultiple = 0;
+  let rMultiple1 = 0, rMultiple2 = 0;
   if (riskPerUnit > 0) {
     if (isLong) {
-      rMultiple = (exit - entry) / riskPerUnit; // Long: profit when exit > entry
+      rMultiple1 = (exit1 - entry) / riskPerUnit;
+      rMultiple2 = (exit2 - entry) / riskPerUnit;
     } else {
-      rMultiple = (entry - exit) / riskPerUnit; // Short: profit when exit < entry  
+      rMultiple1 = (entry - exit1) / riskPerUnit;
+      rMultiple2 = (entry - exit2) / riskPerUnit;
     }
   }
+  // Assume 50% size off at TP1, 50% runner to TP2
+  const rMultiple = (rMultiple1 + rMultiple2) / 2;
   const pl = Math.round(rMultiple * riskDollars);
 
   // Update stats and account
@@ -629,14 +637,17 @@ function addTrade(formData) {
       return Date.now();
     })(),
     pair,
-    entry, stop, exit,
+  entry, stop, exit1, exit2,
     riskPct, grade, notes, ruleFollowed,
   ruleStrategy, ruleTradeMgmt, ruleRiskMgmt, rulePlan,
   ruleStrategyRating, ruleTradeMgmtRating, ruleRiskMgmtRating, rulePlanRating,
     ruleSummary: `${ruleStrategy ? 'S' : 's'}${ruleTradeMgmt ? 'T' : 't'}${ruleRiskMgmt ? 'R' : 'r'}${rulePlan ? 'P' : 'p'}`,
-    rMultiple: parseFloat(rMultiple.toFixed(2)),
+  rMultiple: parseFloat(rMultiple.toFixed(2)),
+  rMultiple1: parseFloat(rMultiple1.toFixed(2)),
+  rMultiple2: parseFloat(rMultiple2.toFixed(2)),
     pl,
-    rText: `1:${(isFinite(rMultiple) && rMultiple>0) ? fmt2(rMultiple) : '0'}`,
+  rText: `1:${(isFinite(rMultiple) && rMultiple>0) ? fmt2(rMultiple) : '0'}`,
+  rSplit: `TP1 ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} / TP2 ${isFinite(rMultiple2)?fmt2(rMultiple2):'0'}`,
   };
   // Insert into current day
   const day = state.currentChallenge.days[state.currentChallenge.dayIndex];
