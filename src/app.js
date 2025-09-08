@@ -529,7 +529,13 @@ function addTrade(formData) {
   const entry = parseFloat(formData.get('entry')); 
   const stop = parseFloat(formData.get('stop')); 
   const exit1 = parseFloat(formData.get('exit1'));
-  const exit2 = parseFloat(formData.get('exit2'));
+  const exit2Raw = formData.get('exit2');
+  const exit2 = exit2Raw === '' || exit2Raw == null ? NaN : parseFloat(exit2Raw);
+  const scalePctRaw = parseFloat(formData.get('scalePct'));
+  let scalePct = isNaN(scalePctRaw) ? 50 : scalePctRaw; // default 50%
+  if (scalePct <= 0) scalePct = 1; if (scalePct >= 100) scalePct = 99; // clamp 1..99 when two legs
+  const peakRaw = formData.get('peak');
+  const peakPrice = peakRaw === '' || peakRaw == null ? NaN : parseFloat(peakRaw);
   const riskPct = parseFloat(formData.get('riskPct') || state.settings.baseRiskPct);
   const grade = formData.get('grade');
   const notes = formData.get('notes') || '';
@@ -545,31 +551,54 @@ function addTrade(formData) {
   const pair = state.currentChallenge.pair; // Use challenge pair, not selector
 
   // Validation
-  if (isNaN(entry) || isNaN(stop) || isNaN(exit1) || isNaN(exit2) || isNaN(riskPct)) {
-    alert('Please enter valid numbers for all price fields');
+  if (isNaN(entry) || isNaN(stop) || isNaN(exit1) || isNaN(riskPct)) {
+    alert('Entry, Stop, TP1 and Risk % are required and must be numbers');
     return;
   }
 
-  const riskDollars = state.account.balance * (riskPct / 100);
-  // Fixed R multiple calculation: properly handle long/short direction
+  // Determine direction
   const isLong = stop < entry; // If stop below entry, it's a long trade
+  // Basic logical validation for direction & TP ordering
+  if (isLong) {
+    if (!(stop < entry)) { alert('For a long trade stop should be below entry'); return; }
+    if (!(exit1 > entry)) { alert('For a long trade TP1 should be above entry'); return; }
+    if (!isNaN(exit2) && exit2 < exit1) { alert('TP2 should be above TP1 for a long trade (further target)'); return; }
+  } else { // short
+    if (!(stop > entry)) { alert('For a short trade stop should be above entry'); return; }
+    if (!(exit1 < entry)) { alert('For a short trade TP1 should be below entry'); return; }
+    if (!isNaN(exit2) && exit2 > exit1) { alert('TP2 should be below TP1 for a short trade (further target)'); return; }
+  }
+
+  const riskDollars = state.account.balance * (riskPct / 100);
+  // R multiple calculation (support optional second leg & peak)
   const riskPerUnit = Math.abs(entry - stop);
-  let rMultiple1 = 0, rMultiple2 = 0;
+  let rMultiple1 = 0, rMultiple2 = NaN, peakR = NaN;
   if (riskPerUnit > 0) {
     if (isLong) {
       rMultiple1 = (exit1 - entry) / riskPerUnit;
-      rMultiple2 = (exit2 - entry) / riskPerUnit;
+      if (!isNaN(exit2)) rMultiple2 = (exit2 - entry) / riskPerUnit;
+      if (!isNaN(peakPrice)) peakR = (peakPrice - entry) / riskPerUnit;
     } else {
       rMultiple1 = (entry - exit1) / riskPerUnit;
-      rMultiple2 = (entry - exit2) / riskPerUnit;
+      if (!isNaN(exit2)) rMultiple2 = (entry - exit2) / riskPerUnit;
+      if (!isNaN(peakPrice)) peakR = (entry - peakPrice) / riskPerUnit;
     }
   }
-  // Fixed fraction f = 0.5 (first scale-out) for realized R calculation
-  const f = 0.5;
-  const realizedR = (f * rMultiple1) + ((1 - f) * rMultiple2);
-  // Attained R (max reached across legs) = max(rMultiple1, rMultiple2)
-  const attainedR = Math.max(rMultiple1, rMultiple2);
-  const pl = Math.round(realizedR * riskDollars);
+
+  // If single-exit (no exit2 provided), treat entire size as leg1
+  const hasSecond = !isNaN(rMultiple2) && isFinite(rMultiple2);
+  const f = hasSecond ? (scalePct / 100) : 1; // fraction allocated to first scale
+  if (!hasSecond) scalePct = 100; // for storage clarity
+  const realizedR = hasSecond ? ((f * rMultiple1) + ((1 - f) * rMultiple2)) : rMultiple1;
+  const attainedBase = hasSecond ? Math.max(rMultiple1, rMultiple2) : rMultiple1;
+  const attainedR = (() => {
+    if (isFinite(peakR)) return Math.max(attainedBase, peakR);
+    return attainedBase;
+  })();
+  // Dollar legs (ensure rounding consistency)
+  let leg1PL = Math.round(rMultiple1 * riskDollars * f);
+  let leg2PL = hasSecond ? Math.round(rMultiple2 * riskDollars * (1 - f)) : 0;
+  const pl = leg1PL + leg2PL; // ensure sum
 
   // Update stats and account
   state.account.balance += pl;
@@ -642,18 +671,31 @@ function addTrade(formData) {
       return Date.now();
     })(),
     pair,
-  entry, stop, exit1, exit2,
+  entry, stop, exit1, exit2: hasSecond ? exit2 : null,
     riskPct, grade, notes, ruleFollowed,
   ruleStrategy, ruleTradeMgmt, ruleRiskMgmt, rulePlan,
   ruleStrategyRating, ruleTradeMgmtRating, ruleRiskMgmtRating, rulePlanRating,
     ruleSummary: `${ruleStrategy ? 'S' : 's'}${ruleTradeMgmt ? 'T' : 't'}${ruleRiskMgmt ? 'R' : 'r'}${rulePlan ? 'P' : 'p'}`,
-  rMultiple: parseFloat(realizedR.toFixed(2)),
+  rMultiple: parseFloat(realizedR.toFixed(2)), // realized
   attainedR: parseFloat(attainedR.toFixed(2)),
   rMultiple1: parseFloat(rMultiple1.toFixed(2)),
-  rMultiple2: parseFloat(rMultiple2.toFixed(2)),
+  rMultiple2: hasSecond ? parseFloat(rMultiple2.toFixed(2)) : null,
+  peakR: isFinite(peakR) ? parseFloat(peakR.toFixed(2)) : null,
+  scalePct,
+  leg1PL,
+  leg2PL,
     pl,
   rText: `1:${(isFinite(realizedR) && Math.abs(realizedR)>0) ? fmt2(realizedR) : '0'}`,
-  rSplit: `TP1 ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} (${(f*100).toFixed(0)}%) / TP2 ${isFinite(rMultiple2)?fmt2(rMultiple2):'0'} (${((1-f)*100).toFixed(0)}%) • Attained ${isFinite(attainedR)?fmt2(attainedR):'0'}R`,
+  rSplit: (() => {
+    const peakNote = (isFinite(peakR) && peakR > (hasSecond ? Math.max(rMultiple1, rMultiple2) : rMultiple1)) ? ` • Peak ${fmt2(peakR)}R` : '';
+    if (hasSecond) {
+      return `TP1 ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} (${(f*100).toFixed(0)}%) $${fmt(Math.abs(leg1PL))}` +
+             ` / TP2 ${isFinite(rMultiple2)?fmt2(rMultiple2):'0'} (${((1-f)*100).toFixed(0)}%) $${fmt(Math.abs(leg2PL))}` +
+             `${peakNote} • Attained ${isFinite(attainedR)?fmt2(attainedR):'0'}R`;
+    }
+    return `TP ${isFinite(rMultiple1)?fmt2(rMultiple1):'0'} (100%) $${fmt(Math.abs(leg1PL))}` +
+           `${peakNote} • Attained ${isFinite(attainedR)?fmt2(attainedR):'0'}R`;
+  })(),
   };
   // Insert into current day
   const day = state.currentChallenge.days[state.currentChallenge.dayIndex];
